@@ -1,0 +1,40 @@
+Running on: n-62-20-12
+CUDA devices: 0
+# Options
+  batch_size = 128
+  device = cpu
+  epochs = 50
+  flow_hidden = 64
+  flow_layers = 4
+  latent_dim = 20
+  lr = 0.001
+  mode = multirun
+  model = model.pt
+  plot = gaussian_prior_posterior.png
+  prior = gaussian
+  runs = 5
+  samples = gaussian_samples.png
+
+-- Run 1/5 --
+  Run 1 test ELBO: -81.6681
+
+-- Run 2/5 --
+  Run 2 test ELBO: -81.5318
+
+-- Run 3/5 --
+  Run 3 test ELBO: -81.3584
+
+-- Run 4/5 --
+  Run 4 test ELBO: -81.0546
+
+-- Run 5/5 --
+  Run 5 test ELBO: -82.7246
+
+──────────────────────────────────────────────────
+[Multi-run results -- Gaussian prior]
+  Runs:    5
+  ELBOs:   [-81.6681 -81.5318 -81.3584 -81.0546 -82.7246]
+  Mean:    -81.6675
+  Std:     0.5670
+  Summary: -81.6675 +/- 0.5670
+──────────────────────────────────────────────────
