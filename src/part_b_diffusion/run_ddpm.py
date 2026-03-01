@@ -20,7 +20,6 @@ import yaml
 import torch
 import numpy as np
 from pathlib import Path
-from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
 from part_b_diffusion.ddpm import DDPM, FcNetwork, train
@@ -28,6 +27,7 @@ from part_b_diffusion.unet import Unet
 from part_b_diffusion.ddpm_vae_beta import DDPMLatent, build_vae
 from part_a_vaes.vae_priors_temp import VAE
 from shared.fid_utils import compute_fid
+from shared.data_loader import get_mnist_raw
 
 
 def is_latent_mode(config: dict) -> bool:
@@ -62,23 +62,19 @@ def get_vae_path(config: dict) -> str:
     vae_name = vae_name.replace('{latent_dim}', str(config['vae']['latent_dim']))
     return os.path.join(config['paths']['model_dir'], vae_name)
 
-
 def preprocess_mnist(x: torch.Tensor) -> torch.Tensor:
     """Dequantize and scale MNIST images to [-1, 1]."""
-    x = x.float() / 255.0
+    x = x.float()  # Already [0, 1] from ToTensor()
     x = x + torch.rand_like(x) / 256.0  # Dequantization noise
     x = (x - 0.5) * 2.0  # Scale to [-1, 1]
     return x
-
 
 def get_data_loaders(config: dict):
     """Create train and test data loaders."""
     batch_size = config['data']['batch_size']
     
-    train_dataset = datasets.MNIST(root='data', train=True, download=True,
-                                   transform=transforms.ToTensor())
-    test_dataset = datasets.MNIST(root='data', train=False, download=True,
-                                  transform=transforms.ToTensor())
+    train_dataset = get_mnist_raw(split='train')
+    test_dataset = get_mnist_raw(split='test')
     
     def collate_fn(batch):
         images, _ = zip(*batch)
@@ -99,16 +95,14 @@ def get_data_loaders_2d(config: dict):
     """Create train/test data loaders for VAE (keeps 28x28 shape)."""
     batch_size = config['data']['batch_size']
     
-    train_dataset = datasets.MNIST(root='data', train=True, download=True,
-                                   transform=transforms.ToTensor())
-    test_dataset = datasets.MNIST(root='data', train=False, download=True,
-                                  transform=transforms.ToTensor())
+    train_dataset = get_mnist_raw(split='train')
+    test_dataset = get_mnist_raw(split='test')
     
     def collate_fn(batch):
         images, _ = zip(*batch)
         images = torch.stack(images)
-        # Scale to [0, 1] for VAE (squeeze channel dim)
-        return images.squeeze(1)  # (batch, 28, 28)
+        # Keep 28x28 shape (squeeze channel dim from (b,1,28,28) to (b,28,28))
+        return images.squeeze(1)
     
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn
@@ -201,7 +195,7 @@ def run_sample(config: dict):
     print(f"[DEBUG] After clamping - min: {samples.min():.4f}, max: {samples.max():.4f}, mean: {samples.mean():.4f}")
     
     samples = samples.reshape(num_samples, 1, 28, 28)
-    
+     
     # Save samples
     samples_dir = config['paths']['samples_dir']
     os.makedirs(samples_dir, exist_ok=True)

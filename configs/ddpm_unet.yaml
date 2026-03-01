@@ -4,7 +4,7 @@
 # Data settings
 data:
   dataset: mnist
-  batch_size: 128
+  batch_size: 256
 
 # Model settings
 model:
@@ -15,7 +15,7 @@ model:
 
 # Training settings
 training:
-  epochs: 5
+  epochs: 20
   lr: 1.0e-3
   device: cuda  # Options: cpu, cuda, mps
 

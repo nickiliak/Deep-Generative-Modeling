@@ -48,10 +48,11 @@ class DDPM(nn.Module):
         ### Implement Algorithm 1 here ###
         
         noise_e = torch.randn_like(x)
-        t = torch.randint(0, self.T, (x.shape[0], 1), device=x.device)
+        t = torch.randint(0, self.T, (x.shape[0],), device=x.device)
         noisy_image = torch.sqrt(self.alpha_cumprod[t]).reshape(-1, 1) * x  + torch.sqrt(1 - self.alpha_cumprod[t]).reshape(-1, 1) * noise_e
-        t_norm = t.float() / self.T 
-        equation = self.network(noisy_image, t_norm)
+        # Normalize timestep to [0, 1]
+        t_input = (t.float() / self.T).unsqueeze(1)
+        equation = self.network(noisy_image, t_input)
         neg_elbo = ((noise_e - equation)**2).mean(dim=1)
 
         return neg_elbo
@@ -73,15 +74,18 @@ class DDPM(nn.Module):
 
         # Sample x_t given x_{t+1} until x_0 is sampled
         for t in range(self.T-1, -1, -1):
-            if t > 1:
+            # According to Algorithm 2: z ~ N(0,I) if t > 1, else z = 0
+            # With 0-indexed t: code t=0 is paper t=1, so condition is t > 0
+            if t > 0:
                 z = torch.randn(shape).to(self.alpha.device)
             else:
                 z = 0
             
-            t_norm  = torch.full((shape[0], 1), t / self.T, device=x_t.device, dtype=torch.float)
-            e_theta = self.network(x_t, t_norm)
+            # Normalize t to [0, 1]
+            t_input = torch.full((shape[0], 1), t / self.T, device=x_t.device, dtype=torch.float)
+            e_theta = self.network(x_t, t_input)
             
-            if t % 20 == 0:
+            if t % 100 == 0:
                 print(f"[DEBUG] Step {t}: e_theta - min: {e_theta.min():.4f}, max: {e_theta.max():.4f}, mean: {e_theta.mean():.4f}")
             
             # Ensure e_theta doesn't have NaN
@@ -89,25 +93,15 @@ class DDPM(nn.Module):
                 print(f"[WARNING] NaN in network output at step {t}, replacing with zeros")
                 e_theta = torch.where(torch.isnan(e_theta), torch.zeros_like(e_theta), e_theta)
             
-            at = self.alpha_cumprod[t].reshape(-1, 1)
-            
-            # Clamp at to avoid division by zero / extremely small values
-            at = torch.clamp(at, min=1e-6)
+            at = self.alpha[t].reshape(-1, 1)
+            at_cumprod = self.alpha_cumprod[t].reshape(-1, 1)
             
             sqrt_at = torch.sqrt(at)
-            sqrt_1_minus_at = torch.sqrt(torch.clamp(1 - at, min=1e-6))
+            sqrt_1_minus_at_cumprod = torch.sqrt(1 - at_cumprod)
             
-            denoise = 1 / sqrt_at * (x_t - ((1 - at) / sqrt_1_minus_at * e_theta))
+            denoise = 1 / sqrt_at * (x_t - (self.beta[t].reshape(-1, 1) / sqrt_1_minus_at_cumprod * e_theta))
             
-            # Clamp denoise to prevent extreme values
-            denoise = torch.clamp(denoise, -10.0, 10.0)
-            
-            x_t = denoise + torch.sqrt(torch.clamp(self.beta[t], min=1e-8)) * z
-            
-            # Ensure x_t doesn't blow up
-            if torch.isnan(x_t).any() or torch.isinf(x_t).any():
-                print(f"[WARNING] NaN/Inf in x_t at step {t}, replacing with zero")
-                x_t = torch.where(torch.isnan(x_t) | torch.isinf(x_t), torch.zeros_like(x_t), x_t)
+            x_t = denoise + torch.sqrt(self.beta[t]) * z
         
         print(f"[DEBUG] Final x_0 - min: {x_t.min():.4f}, max: {x_t.max():.4f}, mean: {x_t.mean():.4f}")
         return x_t
