@@ -1,0 +1,49 @@
+# DDPM in β-VAE Latent Space Configuration
+# Mode: latent - trains DDPM on VAE latent representations
+
+mode: latent  # 'pixel' or 'latent'
+
+# Data settings
+data:
+  dataset: mnist
+  batch_size: 128
+
+# VAE settings (β-VAE with Gaussian decoder)
+vae:
+  beta: 0.01
+  latent_dim: 32
+  decoder: gaussian
+  decoder_std: 0.5
+  checkpoint: null  # null = train VAE first, or path to pre-trained VAE
+
+# DDPM model settings
+model:
+  network: fc  # fc works better for low-dim latent space
+  beta_1: 1.0e-4
+  beta_T: 2.0e-2
+  T: 1000
+
+# Training settings
+training:
+  vae_epochs: 20    # Epochs to train VAE (if checkpoint is null)
+  ddpm_epochs: 20   # Epochs to train DDPM in latent space
+  lr: 1.0e-3
+  device: cpu  # Options: cpu, cuda, mps
+
+# Output paths
+paths:
+  model_dir: models
+  vae_name: beta_vae_gaussian_beta{beta}_z{latent_dim}.pt
+  model_name: ddpm_latent_T{T}_z{latent_dim}.pt
+  fid_output_dir: reports/outputs/ddpm_latent
+  samples_dir: reports/samples
+
+# FID evaluation settings
+fid:
+  num_samples: 512
+  classifier_ckpt: src/part_b_diffusion/mnist_classifier.pth
+
+# Sampling settings
+sampling:
+  num_samples: 64
+  grid_size: 8

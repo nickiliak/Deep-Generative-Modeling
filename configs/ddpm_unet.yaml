@@ -1,0 +1,37 @@
+# DDPM with U-Net Configuration
+# Part B: Denoising Diffusion Probabilistic Models
+
+# Data settings
+data:
+  dataset: mnist
+  batch_size: 128
+
+# Model settings
+model:
+  network: unet
+  beta_1: 1.0e-4
+  beta_T: 2.0e-2
+  T: 1000
+
+# Training settings
+training:
+  epochs: 1
+  lr: 1.0e-3
+  device: cpu  # Options: cpu, cuda, mps
+
+# Output paths
+paths:
+  model_dir: models
+  model_name: ddpm_unet_T{T}_epochs{epochs}.pt
+  fid_output_dir: reports/outputs/ddpm_unet
+  samples_dir: reports/samples
+
+# FID evaluation settings
+fid:
+  num_samples: 512
+  classifier_ckpt: models/mnist_classifier.pth
+
+# Sampling settings
+sampling:
+  num_samples: 64
+  grid_size: 8

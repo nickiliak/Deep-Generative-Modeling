@@ -229,6 +229,36 @@ class BernoulliDecoder(nn.Module):
         return td.Independent(td.Bernoulli(logits=logits), 2)
 
 
+class GaussianDecoder(nn.Module):
+    """
+    Gaussian decoder: p(x|z) = N(x | μ(z), σ²I)
+    
+    Parameters:
+    decoder_net: [torch.nn.Module]
+        Network that outputs mean μ(z).
+    std: [float]
+        Standard deviation (default: 0.5).
+    learnable_std: [bool]
+        Whether std is learnable (default: False).
+    """
+    def __init__(self, decoder_net, std=0.5, learnable_std=False):
+        super().__init__()
+        self.decoder_net = decoder_net
+        
+        if learnable_std:
+            self.log_std = nn.Parameter(torch.tensor(np.log(std)))
+        else:
+            self.register_buffer('log_std', torch.tensor(np.log(std)))
+    
+    def forward(self, z):
+        """
+        Given latent variables, return Gaussian distribution over data space.
+        """
+        mean = self.decoder_net(z)
+        std = torch.exp(self.log_std)
+        return td.Independent(td.Normal(mean, std), 2)
+
+
 # VAE
 
 class VAE(nn.Module):
