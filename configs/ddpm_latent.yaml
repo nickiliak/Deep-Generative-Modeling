@@ -21,7 +21,7 @@ model:
   network: fc  # fc works better for low-dim latent space
   beta_1: 1.0e-4
   beta_T: 2.0e-2
-  T: 1000
+  T: 100  # Number of diffusion timesteps
 
 # Training settings
 training:

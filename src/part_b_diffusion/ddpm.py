@@ -79,9 +79,31 @@ class DDPM(nn.Module):
             
             t_norm  = torch.full((shape[0], 1), t / self.T, device=x_t.device, dtype=torch.float)
             e_theta = self.network(x_t, t_norm)
+            
+            # Ensure e_theta doesn't have NaN
+            if torch.isnan(e_theta).any():
+                print(f"[WARNING] NaN in network output at step {t}, replacing with zeros")
+                e_theta = torch.where(torch.isnan(e_theta), torch.zeros_like(e_theta), e_theta)
+            
             at = self.alpha_cumprod[t].reshape(-1, 1)
-            denoise = 1 / torch.sqrt(at) * (x_t - ((1 - at) / torch.sqrt(1 - at) * e_theta))
-            x_t = denoise + torch.sqrt(self.beta[t]) * z
+            
+            # Clamp at to avoid division by zero / extremely small values
+            at = torch.clamp(at, min=1e-6)
+            
+            sqrt_at = torch.sqrt(at)
+            sqrt_1_minus_at = torch.sqrt(torch.clamp(1 - at, min=1e-6))
+            
+            denoise = 1 / sqrt_at * (x_t - ((1 - at) / sqrt_1_minus_at * e_theta))
+            
+            # Clamp denoise to prevent extreme values
+            denoise = torch.clamp(denoise, -10.0, 10.0)
+            
+            x_t = denoise + torch.sqrt(torch.clamp(self.beta[t], min=1e-8)) * z
+            
+            # Ensure x_t doesn't blow up
+            if torch.isnan(x_t).any() or torch.isinf(x_t).any():
+                print(f"[WARNING] NaN/Inf in x_t at step {t}, replacing with zero")
+                x_t = torch.where(torch.isnan(x_t) | torch.isinf(x_t), torch.zeros_like(x_t), x_t)
                             
         return x_t
 

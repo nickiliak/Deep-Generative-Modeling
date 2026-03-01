@@ -107,12 +107,22 @@ class DDPMLatent(nn.Module):
         x_recon: Reconstructed images, shape (batch, 28, 28)
         """
         with torch.no_grad():
-            # Clamp z to reasonable range to avoid NaN in decoder
-            z = torch.clamp(z, -5.0, 5.0)
-            x_recon = self.vae.decoder(z).mean
-            # Replace any NaN with zeros
-            x_recon = torch.where(torch.isnan(x_recon), torch.zeros_like(x_recon), x_recon)
-        return x_recon
+            # Call decoder directly without clamping
+            mean = self.vae.decoder.decoder_net(z)
+            
+            print(f"[DEBUG] Decoder output - min: {mean.min():.4f}, max: {mean.max():.4f}, mean: {mean.mean():.4f}")
+            print(f"[DEBUG] Decoder output - has NaN: {torch.isnan(mean).any()}")
+            
+            # Only replace obvious errors (NaN/Inf)
+            if torch.isnan(mean).any():
+                print("[WARNING] NaN detected in decoder output, replacing with zeros")
+                mean = torch.where(torch.isnan(mean), torch.zeros_like(mean), mean)
+            
+            if torch.isinf(mean).any():
+                print("[WARNING] Inf detected in decoder output, replacing with zeros")
+                mean = torch.where(torch.isinf(mean), torch.zeros_like(mean), mean)
+            
+        return mean
     
     def negative_elbo(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -144,8 +154,15 @@ class DDPMLatent(nn.Module):
         with torch.no_grad():
             # Sample from DDPM in latent space
             z_samples = self.ddpm.sample((n_samples, self.latent_dim))
+            
+            print(f"[DEBUG] DDPM samples - min: {z_samples.min():.4f}, max: {z_samples.max():.4f}, mean: {z_samples.mean():.4f}")
+            print(f"[DEBUG] DDPM samples - has NaN: {torch.isnan(z_samples).any()}, has Inf: {torch.isinf(z_samples).any()}")
+            
             # Decode to images
             x_samples = self.decode(z_samples)
+            
+            print(f"[DEBUG] Decoded samples - min: {x_samples.min():.4f}, max: {x_samples.max():.4f}, mean: {x_samples.mean():.4f}")
+            
         return x_samples
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:

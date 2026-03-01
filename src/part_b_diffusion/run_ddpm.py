@@ -375,6 +375,24 @@ def run_train_latent(config: dict):
             param.requires_grad = False
         model.vae.eval()
     
+    # Inspect latent distribution from VAE
+    print(f"\n[INSPECT] Analyzing VAE latent distribution...")
+    with torch.no_grad():
+        latent_stats = []
+        for batch in train_loader:
+            batch = batch.to(device)
+            q = model.vae.encoder(batch)
+            z = q.rsample()
+            latent_stats.append(z.cpu())
+            if len(latent_stats) >= 5:  # Just a few batches
+                break
+        
+        all_z = torch.cat(latent_stats, dim=0)
+        print(f"  VAE latent - min: {all_z.min():.4f}, max: {all_z.max():.4f}")
+        print(f"  VAE latent - mean: {all_z.mean():.4f}, std: {all_z.std():.4f}")
+        print(f"  VAE latent - mean per dim: {all_z.mean(dim=0).abs().max():.4f}")
+        print(f"  VAE latent - std per dim: {all_z.std(dim=0).mean():.4f}")
+    
     # Step 2: Train DDPM in latent space
     print(f"\n[DDPM] Training in latent space for {config['training']['ddpm_epochs']} epochs...")
     optimizer = torch.optim.Adam(model.ddpm.parameters(), lr=config['training']['lr'])
