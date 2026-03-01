@@ -17,7 +17,7 @@ model:
 training:
   epochs: 5
   lr: 1.0e-3
-  device: cpu  # Options: cpu, cuda, mps
+  device: cuda  # Options: cpu, cuda, mps
 
 # Output paths
 paths:

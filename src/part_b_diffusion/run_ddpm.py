@@ -191,9 +191,15 @@ def run_sample(config: dict):
     with torch.no_grad():
         samples = model.sample((num_samples, D)).cpu()
     
+    print(f"[DEBUG] Raw samples - min: {samples.min():.4f}, max: {samples.max():.4f}, mean: {samples.mean():.4f}")
+    
     # Transform back to [0, 1]
     samples = samples / 2 + 0.5
+    print(f"[DEBUG] After scaling - min: {samples.min():.4f}, max: {samples.max():.4f}, mean: {samples.mean():.4f}")
+    
     samples = samples.clamp(0, 1)
+    print(f"[DEBUG] After clamping - min: {samples.min():.4f}, max: {samples.max():.4f}, mean: {samples.mean():.4f}")
+    
     samples = samples.reshape(num_samples, 1, 28, 28)
     
     # Save samples

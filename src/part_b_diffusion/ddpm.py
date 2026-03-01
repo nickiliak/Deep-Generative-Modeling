@@ -69,6 +69,7 @@ class DDPM(nn.Module):
         """
         # Sample x_t for t=T (i.e., Gaussian noise)
         x_t = torch.randn(shape).to(self.alpha.device)
+        print(f"[DEBUG] Initial x_T - min: {x_t.min():.4f}, max: {x_t.max():.4f}")
 
         # Sample x_t given x_{t+1} until x_0 is sampled
         for t in range(self.T-1, -1, -1):
@@ -79,6 +80,9 @@ class DDPM(nn.Module):
             
             t_norm  = torch.full((shape[0], 1), t / self.T, device=x_t.device, dtype=torch.float)
             e_theta = self.network(x_t, t_norm)
+            
+            if t % 20 == 0:
+                print(f"[DEBUG] Step {t}: e_theta - min: {e_theta.min():.4f}, max: {e_theta.max():.4f}, mean: {e_theta.mean():.4f}")
             
             # Ensure e_theta doesn't have NaN
             if torch.isnan(e_theta).any():
@@ -104,7 +108,8 @@ class DDPM(nn.Module):
             if torch.isnan(x_t).any() or torch.isinf(x_t).any():
                 print(f"[WARNING] NaN/Inf in x_t at step {t}, replacing with zero")
                 x_t = torch.where(torch.isnan(x_t) | torch.isinf(x_t), torch.zeros_like(x_t), x_t)
-                            
+        
+        print(f"[DEBUG] Final x_0 - min: {x_t.min():.4f}, max: {x_t.max():.4f}, mean: {x_t.mean():.4f}")
         return x_t
 
     def loss(self, x):

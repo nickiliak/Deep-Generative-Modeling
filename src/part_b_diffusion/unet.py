@@ -36,54 +36,54 @@ class Unet(torch.nn.Module):
         self._convs = torch.nn.ModuleList([
             torch.nn.Sequential(
                 torch.nn.Conv2d(2, chs[0], kernel_size=3, padding=1),  # (batch, ch, 28, 28)
-                torch.nn.LogSigmoid(),  # (batch, 8, 28, 28)
+                torch.nn.ReLU(),  # (batch, 8, 28, 28)
             ),
             torch.nn.Sequential(
                 torch.nn.MaxPool2d(kernel_size=2, stride=2),  # (batch, ch, 14, 14)
                 torch.nn.Conv2d(chs[0], chs[1], kernel_size=3, padding=1),  # (batch, ch, 14, 14)
-                torch.nn.LogSigmoid(),  # (batch, 16, 14, 14)
+                torch.nn.ReLU(),  # (batch, 16, 14, 14)
             ),
             torch.nn.Sequential(
                 torch.nn.MaxPool2d(kernel_size=2, stride=2),  # (batch, ch, 7, 7)
                 torch.nn.Conv2d(chs[1], chs[2], kernel_size=3, padding=1),  # (batch, ch, 7, 7)
-                torch.nn.LogSigmoid(),  # (batch, 32, 7, 7)
+                torch.nn.ReLU(),  # (batch, 32, 7, 7)
             ),
             torch.nn.Sequential(
                 torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=1),  # (batch, ch, 4, 4)
                 torch.nn.Conv2d(chs[2], chs[3], kernel_size=3, padding=1),  # (batch, ch, 4, 4)
-                torch.nn.LogSigmoid(),  # (batch, 64, 4, 4)
+                torch.nn.ReLU(),  # (batch, 64, 4, 4)
             ),
             torch.nn.Sequential(
                 torch.nn.MaxPool2d(kernel_size=2, stride=2),  # (batch, ch, 2, 2)
                 torch.nn.Conv2d(chs[3], chs[4], kernel_size=3, padding=1),  # (batch, ch, 2, 2)
-                torch.nn.LogSigmoid(),  # (batch, 64, 2, 2)
+                torch.nn.ReLU(),  # (batch, 64, 2, 2)
             ),
         ])
         self._tconvs = torch.nn.ModuleList([
             torch.nn.Sequential(
                 # input is the output of convs[4]
                 torch.nn.ConvTranspose2d(chs[4], chs[3], kernel_size=3, stride=2, padding=1, output_padding=1),  # (batch, 64, 4, 4)
-                torch.nn.LogSigmoid(),
+                torch.nn.ReLU(),
             ),
             torch.nn.Sequential(
                 # input is the output from the above sequential concated with the output from convs[3]
                 torch.nn.ConvTranspose2d(chs[3] * 2, chs[2], kernel_size=3, stride=2, padding=1, output_padding=0),  # (batch, 32, 7, 7)
-                torch.nn.LogSigmoid(),
+                torch.nn.ReLU(),
             ),
             torch.nn.Sequential(
                 # input is the output from the above sequential concated with the output from convs[2]
                 torch.nn.ConvTranspose2d(chs[2] * 2, chs[1], kernel_size=3, stride=2, padding=1, output_padding=1),  # (batch, chs[2], 14, 14)
-                torch.nn.LogSigmoid(),
+                torch.nn.ReLU(),
             ),
             torch.nn.Sequential(
                 # input is the output from the above sequential concated with the output from convs[1]
                 torch.nn.ConvTranspose2d(chs[1] * 2, chs[0], kernel_size=3, stride=2, padding=1, output_padding=1),  # (batch, chs[1], 28, 28)
-                torch.nn.LogSigmoid(),
+                torch.nn.ReLU(),
             ),
             torch.nn.Sequential(
                 # input is the output from the above sequential concated with the output from convs[0]
                 torch.nn.Conv2d(chs[0] * 2, chs[0], kernel_size=3, padding=1),  # (batch, chs[0], 28, 28)
-                torch.nn.LogSigmoid(),
+                torch.nn.ReLU(),
                 torch.nn.Conv2d(chs[0], 1, kernel_size=3, padding=1),  # (batch, 1, 28, 28)
             ),
         ])
