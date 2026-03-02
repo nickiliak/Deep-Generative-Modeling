@@ -5,6 +5,7 @@ import torch.utils.data
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
+import os
 from tqdm import tqdm
 
 
@@ -627,12 +628,12 @@ if __name__ == "__main__":
     parser.add_argument("mode", choices=["train", "evaluate", "sample", "multirun"],
                         help="train: single run | evaluate: load & eval | sample: generate images | multirun: N runs -> mean+/-std")
     parser.add_argument("--prior",      type=str,   default="gaussian", choices=["gaussian", "mog", "flow"])
-    parser.add_argument("--model",      type=str,   default="model.pt",
-                        help="Path to save/load model weights (used in train + evaluate)")
+    parser.add_argument("--model",      type=str,   default=None,
+                        help="Path to save/load model weights (default: models/{prior}_z{latent_dim}.pt)")
     parser.add_argument("--plot",       type=str,   default=None,
-                        help="Output path for prior/posterior plot (default: <prior>_prior_posterior.png)")
+                        help="Output path for prior/posterior plot (default: figures/{prior}_prior_posterior.png)")
     parser.add_argument("--samples",    type=str,   default=None,
-                        help="Output path for samples image (default: <prior>_samples.png)")
+                        help="Output path for samples image (default: figures/{prior}_samples.png)")
     parser.add_argument("--device",     type=str,   default="cpu", choices=["cpu", "cuda", "mps"])
     parser.add_argument("--batch-size", type=int,   default=128)
     parser.add_argument("--epochs",     type=int,   default=20)
@@ -646,8 +647,13 @@ if __name__ == "__main__":
                         help="Hidden dim of scale/translation nets in Flow prior (default: 64)")
     args = parser.parse_args()
 
-    if args.plot    is None: args.plot    = f"{args.prior}_prior_posterior.png"
-    if args.samples is None: args.samples = f"{args.prior}_samples.png"
+    # Set default paths relative to reports/outputs/part_a_vaes
+    if args.model is None:
+        args.model = f"../../reports/outputs/part_a_vaes/models/{args.prior}_z{args.latent_dim}.pt"
+    if args.plot is None:
+        args.plot = f"../../reports/outputs/part_a_vaes/figures/{args.prior}_prior_posterior.png"
+    if args.samples is None:
+        args.samples = f"../../reports/outputs/part_a_vaes/figures/{args.prior}_samples.png"
 
     print("# Options")
     for k, v in sorted(vars(args).items()):
@@ -655,6 +661,18 @@ if __name__ == "__main__":
 
     device = torch.device(args.device)
     M      = args.latent_dim
+
+    # Get the directory of this script and resolve relative paths
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    args.model = os.path.join(script_dir, args.model) if not os.path.isabs(args.model) else args.model
+    args.plot = os.path.join(script_dir, args.plot) if not os.path.isabs(args.plot) else args.plot
+    args.samples = os.path.join(script_dir, args.samples) if not os.path.isabs(args.samples) else args.samples
+
+    # Create necessary directories
+    for path in [args.model, args.plot, args.samples]:
+        dir_path = os.path.dirname(path)
+        if dir_path:
+            os.makedirs(dir_path, exist_ok=True)
 
     # Binarized MNIST
     binarize  = transforms.Lambda(lambda x: (x > 0.5).float().squeeze())
