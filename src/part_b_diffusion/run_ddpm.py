@@ -350,6 +350,24 @@ def build_latent_model(config: dict, device: str) -> DDPMLatent:
     return DDPMLatent(vae, ddpm, freeze_encoder=True)
 
 
+def sample_from_latent_model(model, num_samples: int, device: str):
+    """Generate samples from latent DDPM with timing."""
+    device_str = device if isinstance(device, str) else str(device)
+    
+    with torch.no_grad():
+        start = time.perf_counter()
+        samples = model.sample(num_samples).cpu()
+        if 'cuda' in device_str:
+            torch.cuda.synchronize()
+        end = time.perf_counter()
+    
+    elapsed = end - start
+    s_per = num_samples / elapsed if elapsed > 0 else float('inf')
+    print(f"[TIMING] Latent DDPM sampling: {elapsed:.4f} s for {num_samples} samples ({s_per:.2f} samples/s)")
+    
+    return samples, elapsed, s_per
+
+
 def run_train_latent(config: dict):
     """Train VAE then DDPM in latent space."""
     device = config['training']['device']
@@ -456,25 +474,14 @@ def run_sample_latent(config: dict):
     num_samples = config['sampling']['num_samples']
     
     print(f"Generating {num_samples} samples from latent DDPM...")
-    device_str = device if isinstance(device, str) else str(device)
-
-    # Measure latent DDPM + decode (DDPMLatent.sample does both)
-    with torch.no_grad():
-        start = time.perf_counter()
-        samples = model.sample(num_samples).cpu()
-        if 'cuda' in device_str:
-            torch.cuda.synchronize()
-        end = time.perf_counter()
-    elapsed = end - start
-    s_per = num_samples / elapsed if elapsed > 0 else float('inf')
-    print(f"[TIMING] Latent DDPM (DDPM+VAE decode): {elapsed:.4f} s for {num_samples} samples ({s_per:.2f} samples/s)")
+    samples, elapsed, s_per = sample_from_latent_model(model, num_samples, device)
 
     # Additionally measure pure VAE prior sampling (z ~ p(z), x ~ p(x|z)) for comparison
     try:
         with torch.no_grad():
             start_v = time.perf_counter()
             vae_samples = model.vae.sample(num_samples).to(device)  # ensure device
-            if 'cuda' in device_str:
+            if 'cuda' in str(device):
                 torch.cuda.synchronize()
             end_v = time.perf_counter()
         elapsed_v = end_v - start_v
@@ -532,7 +539,7 @@ def run_fid_latent(config: dict):
     
     # Generate samples
     print(f"Generating {num_samples} samples...")
-    gen_images = model.sample(num_samples)
+    gen_images, elapsed, s_per = sample_from_latent_model(model, num_samples, device)
     gen_images = gen_images.unsqueeze(1).to(device)  # (n, 1, 28, 28)
     
     # Compute FID

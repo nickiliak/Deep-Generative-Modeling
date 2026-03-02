@@ -41,7 +41,7 @@ paths:
 # FID evaluation settings
 fid:
   num_samples: 512
-  classifier_ckpt: src/part_b_diffusion/mnist_classifier.pth
+  classifier_ckpt: models/mnist_classifier.pth
 
 # Sampling settings
 sampling:

@@ -15,7 +15,7 @@ model:
 
 # Training settings
 training:
-  epochs: 20
+  epochs: 80
   lr: 1.0e-3
   device: cuda  # Options: cpu, cuda, mps
 
