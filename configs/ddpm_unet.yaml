@@ -15,9 +15,9 @@ model:
 
 # Training settings
 training:
-  epochs: 50
+  epochs: 60
   lr: 1.0e-3
-  device: cpu  # Options: cpu, cuda, mps
+  device: cuda  # Options: cpu, cuda, mps
 
 # Output paths
 paths:
