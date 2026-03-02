@@ -395,8 +395,8 @@ def run_train_latent(config: dict):
 
 def main():
     parser = argparse.ArgumentParser(description="DDPM Runner")
-    parser.add_argument('mode', choices=['train', 'sample', 'fid', 'all'],
-                        help='Mode: train, sample, fid, or all (train+sample+fid)')
+    parser.add_argument('mode', choices=['train', 'sample', 'fid', 'all', 'plot_latents'],
+                        help='Mode: train, sample, fid, all, or plot_latents')
     parser.add_argument('--config', type=str, default='../../configs/ddpm_unet.yaml',
                         help='Path to YAML config file')
     args = parser.parse_args()
