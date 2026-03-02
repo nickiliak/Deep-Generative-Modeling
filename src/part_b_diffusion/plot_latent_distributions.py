@@ -67,17 +67,10 @@ def project_with_pca(reference, arrays):
         return reference, arrays
 
 
-def compare_latent_distributions(model, data_loader, device='cpu', n_samples=5000, save_dir='reports/outputs/latent_distributions'):
+def compare_latent_distributions(model, data_loader, device='cpu', n_samples=5000, save_dir='reports/plots'):
     """Collect prior, aggregate posterior, and DDPM latent samples, project to 2D and plot.
 
-    Saves PNG and JSON stats to `save_dir` with timestamped filenames.
-    
-    Parameters:
-    model: DDPMLatent model with vae and ddpm components
-    data_loader: DataLoader for computing aggregate posterior
-    device: Device to run on
-    n_samples: Number of samples to collect for each distribution
-    save_dir: Output directory (default: reports/outputs/latent_distributions)
+    Saves PNG and JSON stats to `save_dir`.
     """
     os.makedirs(save_dir, exist_ok=True)
     t0 = time.perf_counter()
@@ -159,31 +152,18 @@ def compare_latent_distributions(model, data_loader, device='cpu', n_samples=500
         # Plot mean marker and 2-sigma covariance ellipse
         mu = np.mean(pts, axis=0)
         cov = np.cov(pts, rowvar=False)
-        try:
-            from matplotlib.patches import Ellipse
-            vals, vecs = np.linalg.eigh(cov)
-            order = vals.argsort()[::-1]
-            vals = vals[order]
-            vecs = vecs[:, order]
-            theta = np.degrees(np.arctan2(vecs[1, 0], vecs[0, 0]))
-            # 2-sigma ellipse
-            width, height = 2 * np.sqrt(vals[:2]) * 2.0
-            ellipse = Ellipse(xy=mu, width=width, height=height, angle=theta,
-                              edgecolor='k', facecolor='none', linewidth=1.0, alpha=0.9)
-            if i in (0, 1):
-                ax.add_patch(ellipse)
-        except Exception:
-            pass
-
-        ax.plot(mu[0], mu[1], marker='x', color='k', markersize=6, mew=2)
+        # Removed drawing of 2-sigma ellipse and mean marker per user request
 
         ax.set_title(title)
+        ax.set_xlabel('z₁')
+        ax.set_ylabel('z₂')
         # Apply prior/posterior limits to first two panels, DDPM own limits to last
         if i in (0, 1):
             ax.set_xlim(xlim_pp); ax.set_ylim(ylim_pp)
         else:
             ax.set_xlim(xlim_dd); ax.set_ylim(ylim_dd)
-        ax.set_aspect('equal', adjustable='box')
+        # Use auto aspect so all subplot boxes are exactly the same size
+        ax.set_aspect('auto')
         ax.grid(False)
         # Add a small colorbar per panel
         cbar = fig.colorbar(cp, ax=ax, fraction=0.046, pad=0.03)
@@ -191,7 +171,7 @@ def compare_latent_distributions(model, data_loader, device='cpu', n_samples=500
 
     plt.tight_layout()
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_png = os.path.join(save_dir, f"comparison_{timestamp}.png")
+    out_png = os.path.join(save_dir, f"b_vae_prior_latent_DDPM_comparison_{timestamp}.png")
     plt.savefig(out_png, dpi=150)
     plt.close(fig)
 
@@ -212,7 +192,7 @@ def compare_latent_distributions(model, data_loader, device='cpu', n_samples=500
         'elapsed_sec': time.perf_counter() - t0,
     }
 
-    out_json = os.path.join(save_dir, f"stats_{timestamp}.json")
+    out_json = os.path.join(save_dir, f"b_vae_latent_distribution_stats_{timestamp}.json")
     with open(out_json, 'w') as f:
         json.dump(stats, f, indent=2)
 

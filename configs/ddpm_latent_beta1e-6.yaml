@@ -37,7 +37,7 @@ paths:
   vae_name: beta_vae_gaussian_beta{beta}_z{latent_dim}.pt
   model_name: ddpm_latent_T{T}_z{latent_dim}.pt
   fid_output_dir: reports/outputs/ddpm_latent
-  samples_dir: reports/samples
+  samples_dir: reports/outputs/latent_distributions
 
 # FID evaluation settings
 fid:

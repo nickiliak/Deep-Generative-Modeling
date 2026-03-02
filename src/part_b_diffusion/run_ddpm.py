@@ -436,9 +436,9 @@ def run_plot_latents(config: dict):
     print(f"[OK] Loaded DDPM from {model_path}")
     model.eval()
     
-    # Create output directory for latent distribution comparisons
-    output_dir = 'reports/outputs/latent_distributions'
-    os.makedirs(output_dir, exist_ok=True)
+    # Create output directory
+    samples_dir = config['paths']['samples_dir']
+    os.makedirs(samples_dir, exist_ok=True)
     
     # Plot and compare distributions
     compare_latent_distributions(
@@ -446,7 +446,8 @@ def run_plot_latents(config: dict):
         test_loader,
         device=device,
         n_samples=config.get('plot_latents', {}).get('n_samples', 5000),
-        save_dir=output_dir
+        save_dir=samples_dir
+        #save_dir='reports/plots'
     )
     print(f"[OK] Latent distribution plots saved to {samples_dir}")
 
