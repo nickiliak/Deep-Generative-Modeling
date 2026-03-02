@@ -79,8 +79,8 @@ Generates 2D PCA projections with KDE density heatmaps, scatter points, means, a
 | DDPM checkpoint | `models/ddpm_latent_T{T}_z{latent_dim}.pt` |
 | Sample images | `reports/samples/ddpm_latent_z{latent_dim}_samples_*.png` |
 | FID results | `reports/outputs/ddpm_latent/run_<timestamp>.json` |
-| Latent distribution comparison plot | `reports/samples/latent_distribution_comparison_<timestamp>.png` |
-| Latent distribution statistics | `reports/samples/latent_distribution_stats_<timestamp>.json` |
+| Latent distribution comparison plot | `reports/outputs/latent_distributions/comparison_<timestamp>.png` |
+| Latent distribution statistics | `reports/outputs/latent_distributions/stats_<timestamp>.json` |
 
 ---
 

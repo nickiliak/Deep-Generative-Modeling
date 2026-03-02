@@ -67,10 +67,17 @@ def project_with_pca(reference, arrays):
         return reference, arrays
 
 
-def compare_latent_distributions(model, data_loader, device='cpu', n_samples=5000, save_dir='outputs'):
+def compare_latent_distributions(model, data_loader, device='cpu', n_samples=5000, save_dir='reports/outputs/latent_distributions'):
     """Collect prior, aggregate posterior, and DDPM latent samples, project to 2D and plot.
 
-    Saves PNG and JSON stats to `save_dir`.
+    Saves PNG and JSON stats to `save_dir` with timestamped filenames.
+    
+    Parameters:
+    model: DDPMLatent model with vae and ddpm components
+    data_loader: DataLoader for computing aggregate posterior
+    device: Device to run on
+    n_samples: Number of samples to collect for each distribution
+    save_dir: Output directory (default: reports/outputs/latent_distributions)
     """
     os.makedirs(save_dir, exist_ok=True)
     t0 = time.perf_counter()
@@ -184,7 +191,7 @@ def compare_latent_distributions(model, data_loader, device='cpu', n_samples=500
 
     plt.tight_layout()
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_png = os.path.join(save_dir, f"latent_distribution_comparison_{timestamp}.png")
+    out_png = os.path.join(save_dir, f"comparison_{timestamp}.png")
     plt.savefig(out_png, dpi=150)
     plt.close(fig)
 
@@ -205,7 +212,7 @@ def compare_latent_distributions(model, data_loader, device='cpu', n_samples=500
         'elapsed_sec': time.perf_counter() - t0,
     }
 
-    out_json = os.path.join(save_dir, f"latent_distribution_stats_{timestamp}.json")
+    out_json = os.path.join(save_dir, f"stats_{timestamp}.json")
     with open(out_json, 'w') as f:
         json.dump(stats, f, indent=2)
 
