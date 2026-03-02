@@ -21,6 +21,7 @@ import torch
 import numpy as np
 from pathlib import Path
 from torchvision.utils import save_image
+import time
 
 from part_b_diffusion.ddpm import DDPM, FcNetwork, train
 from part_b_diffusion.unet import Unet
@@ -182,8 +183,17 @@ def run_sample(config: dict):
     D = 28 * 28
     
     print(f"Generating {num_samples} samples...")
+    # Time sampling (wall-clock). Make sure to sync CUDA if used.
+    device_str = device if isinstance(device, str) else str(device)
     with torch.no_grad():
+        start = time.perf_counter()
         samples = model.sample((num_samples, D)).cpu()
+        if 'cuda' in device_str:
+            torch.cuda.synchronize()
+        end = time.perf_counter()
+    elapsed = end - start
+    s_per = num_samples / elapsed if elapsed > 0 else float('inf')
+    print(f"[TIMING] DDPM sampling: {elapsed:.4f} s for {num_samples} samples ({s_per:.2f} samples/s)")
     
     print(f"[DEBUG] Raw samples - min: {samples.min():.4f}, max: {samples.max():.4f}, mean: {samples.mean():.4f}")
     
@@ -234,8 +244,16 @@ def run_fid(config: dict):
     
     # Generate samples
     print(f"Generating {num_samples} samples...")
+    device_str = device if isinstance(device, str) else str(device)
     with torch.no_grad():
+        start = time.perf_counter()
         gen_images = model.sample((num_samples, D))
+        if 'cuda' in device_str:
+            torch.cuda.synchronize()
+        end = time.perf_counter()
+    elapsed = end - start
+    s_per = num_samples / elapsed if elapsed > 0 else float('inf')
+    print(f"[TIMING] DDPM sampling: {elapsed:.4f} s for {num_samples} samples ({s_per:.2f} samples/s)")
     gen_images = gen_images.reshape(num_samples, 1, 28, 28).to(device)
     
     # Compute FID
@@ -255,6 +273,8 @@ def run_fid(config: dict):
         "timestamp": timestamp,
         "fid_score": float(fid_score),
         "num_samples": num_samples,
+        "sampling_time_sec": float(elapsed),
+        "samples_per_sec": float(s_per),
         "model": {
             "network": config['model']['network'],
             "T": config['model']['T'],
@@ -436,7 +456,33 @@ def run_sample_latent(config: dict):
     num_samples = config['sampling']['num_samples']
     
     print(f"Generating {num_samples} samples from latent DDPM...")
-    samples = model.sample(num_samples).cpu()
+    device_str = device if isinstance(device, str) else str(device)
+
+    # Measure latent DDPM + decode (DDPMLatent.sample does both)
+    with torch.no_grad():
+        start = time.perf_counter()
+        samples = model.sample(num_samples).cpu()
+        if 'cuda' in device_str:
+            torch.cuda.synchronize()
+        end = time.perf_counter()
+    elapsed = end - start
+    s_per = num_samples / elapsed if elapsed > 0 else float('inf')
+    print(f"[TIMING] Latent DDPM (DDPM+VAE decode): {elapsed:.4f} s for {num_samples} samples ({s_per:.2f} samples/s)")
+
+    # Additionally measure pure VAE prior sampling (z ~ p(z), x ~ p(x|z)) for comparison
+    try:
+        with torch.no_grad():
+            start_v = time.perf_counter()
+            vae_samples = model.vae.sample(num_samples).to(device)  # ensure device
+            if 'cuda' in device_str:
+                torch.cuda.synchronize()
+            end_v = time.perf_counter()
+        elapsed_v = end_v - start_v
+        s_per_v = num_samples / elapsed_v if elapsed_v > 0 else float('inf')
+        print(f"[TIMING] VAE prior sampling: {elapsed_v:.4f} s for {num_samples} samples ({s_per_v:.2f} samples/s)")
+    except Exception:
+        # If VAE sampling fails for any reason, skip timing but continue
+        print("[TIMING] VAE prior sampling: failed to run/sample (skipped)")
     
     # Clamp and reshape for saving
     samples = samples.clamp(0, 1)
@@ -505,6 +551,8 @@ def run_fid_latent(config: dict):
         "timestamp": timestamp,
         "fid_score": float(fid_score),
         "num_samples": num_samples,
+        "sampling_time_sec": float(elapsed),
+        "samples_per_sec": float(s_per),
         "mode": "latent",
         "vae": {
             "beta": config['vae']['beta'],
