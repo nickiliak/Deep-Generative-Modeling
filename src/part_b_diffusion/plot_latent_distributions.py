@@ -4,6 +4,8 @@ import time
 import datetime
 import numpy as np
 import torch
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend (saves to file instead of displaying)
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
 from sklearn.decomposition import PCA

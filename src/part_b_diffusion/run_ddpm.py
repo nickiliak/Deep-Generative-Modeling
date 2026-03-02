@@ -17,6 +17,7 @@ import time
 from part_b_diffusion.ddpm import DDPM, FcNetwork, train, build_model
 from part_b_diffusion.ddpm_vae_beta import DDPMLatent, build_vae, train_vae, build_latent_model
 from part_b_diffusion.utils import is_latent_mode, load_config, get_model_path, get_vae_path, preprocess_mnist
+from part_b_diffusion.plot_latent_distributions import compare_latent_distributions
 from part_a_vaes.vae_priors_temp import VAE
 from shared.fid_utils import compute_fid
 from shared.data_loader import get_mnist_raw
@@ -393,6 +394,63 @@ def run_train_latent(config: dict):
     print(f"\n[OK] DDPM saved -> {model_path}")
 
 
+def run_plot_latents(config: dict):
+    """Plot and compare latent distributions (prior, posterior, DDPM) for latent-space models."""
+    device = config['training']['device']
+    latent = is_latent_mode(config)
+    
+    if not latent:
+        print("[ERROR] plot_latents requires a latent-space config (with VAE section)")
+        return
+    
+    print("Plotting latent distributions...")
+    
+    # Create data loader for computing aggregate posterior
+    _, test_loader = get_data_loaders_2d(config)
+    
+    # Build and load model
+    model = build_latent_model(config, device)
+    
+    # Load VAE checkpoint
+    vae_path = get_vae_path(config)
+    vae_checkpoint = config['vae'].get('checkpoint') or vae_path
+    
+    if not os.path.exists(vae_checkpoint):
+        print(f"[ERROR] VAE checkpoint not found at {vae_checkpoint}")
+        print(f"        Expected pattern: models/beta_vae_gaussian_beta{{beta}}_z{{latent_dim}}.pt")
+        print(f"        You may need to train the VAE first using: uv run src/part_b_diffusion/run_ddpm.py train --config {config}")
+        return
+    
+    model.vae.load_state_dict(torch.load(vae_checkpoint, map_location=device))
+    print(f"[OK] Loaded VAE from {vae_checkpoint}")
+    
+    # Load DDPM checkpoint
+    model_path = get_model_path(config)
+    if not os.path.exists(model_path):
+        print(f"[ERROR] DDPM checkpoint not found at {model_path}")
+        print(f"        Expected pattern: models/ddpm_latent_T{{T}}_z{{latent_dim}}.pt")
+        print(f"        You may need to train the DDPM first using: uv run src/part_b_diffusion/run_ddpm.py train --config {config}")
+        return
+    
+    model.ddpm.load_state_dict(torch.load(model_path, map_location=device))
+    print(f"[OK] Loaded DDPM from {model_path}")
+    model.eval()
+    
+    # Create output directory
+    samples_dir = config['paths']['samples_dir']
+    os.makedirs(samples_dir, exist_ok=True)
+    
+    # Plot and compare distributions
+    compare_latent_distributions(
+        model,
+        test_loader,
+        device=device,
+        n_samples=config.get('plot_latents', {}).get('n_samples', 5000),
+        save_dir=samples_dir
+    )
+    print(f"[OK] Latent distribution plots saved to {samples_dir}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="DDPM Runner")
     parser.add_argument('mode', choices=['train', 'sample', 'fid', 'all', 'plot_latents'],
@@ -412,6 +470,7 @@ def main():
         'train': [run_train_latent if latent_mode else run_train],
         'sample': [run_sample],
         'fid': [run_fid],
+        'plot_latents': [run_plot_latents],
         'all': [
             run_train_latent if latent_mode else run_train,
             run_sample,
