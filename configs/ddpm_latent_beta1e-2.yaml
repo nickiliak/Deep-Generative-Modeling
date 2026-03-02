@@ -26,18 +26,18 @@ model:
 
 # Training settings
 training:
-  vae_epochs: 1
-  ddpm_epochs: 1
+  vae_epochs: 40
+  ddpm_epochs: 70
   lr: 1.0e-3
   device: cuda
 
 # Output paths
 paths:
-  model_dir: models
+  model_dir: models/part_b_diffusion
   vae_name: beta_vae_gaussian_beta{beta}_z{latent_dim}.pt
   model_name: ddpm_latent_T{T}_z{latent_dim}.pt
-  fid_output_dir: reports/outputs/ddpm_latent
-  samples_dir: reports/samples
+  fid_output_dir: reports/outputs/part_b_diffusion/fid
+  samples_dir: reports/outputs/part_b_diffusion/samples
 
 # FID evaluation settings
 fid:

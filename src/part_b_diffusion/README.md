@@ -27,9 +27,9 @@ uv run src/part_b_diffusion/run_ddpm.py all --config configs/ddpm_unet.yaml
 ### Output Locations
 | Output | Path |
 |--------|------|
-| Model checkpoint | `models/ddpm_unet_T{T}_epochs{epochs}.pt` |
-| Sample images | `reports/samples/ddpm_unet_samples_*.png` |
-| FID results | `reports/outputs/ddpm_unet/run_<timestamp>.json` |
+| Model checkpoint | `models/part_b_diffusion/ddpm_unet_T{T}_epochs{epochs}.pt` |
+| Sample images | `reports/outputs/part_b_diffusion/samples/ddpm_unet_samples_*.png` |
+| FID results | `reports/outputs/part_b_diffusion/fid/run_<timestamp>.json` |
 
 ---
 
@@ -75,12 +75,12 @@ Generates 2D PCA projections with KDE density heatmaps, scatter points, means, a
 ### Output Locations
 | Output | Path |
 |--------|------|
-| VAE checkpoint | `models/beta_vae_gaussian_beta{beta}_z{latent_dim}.pt` |
-| DDPM checkpoint | `models/ddpm_latent_T{T}_z{latent_dim}.pt` |
-| Sample images | `reports/samples/ddpm_latent_z{latent_dim}_samples_*.png` |
-| FID results | `reports/outputs/ddpm_latent/run_<timestamp>.json` |
-| Latent distribution comparison plot | `reports/outputs/latent_distributions/comparison_<timestamp>.png` |
-| Latent distribution statistics | `reports/outputs/latent_distributions/stats_<timestamp>.json` |
+| VAE checkpoint | `models/part_b_diffusion/beta_vae_gaussian_beta{beta}_z{latent_dim}.pt` |
+| DDPM checkpoint | `models/part_b_diffusion/ddpm_latent_T{T}_z{latent_dim}.pt` |
+| Sample images | `reports/outputs/part_b_diffusion/samples/ddpm_latent_z{latent_dim}_samples_*.png` |
+| FID results | `reports/outputs/part_b_diffusion/fid/run_<timestamp>.json` |
+| Latent distribution comparison plot | `reports/outputs/part_b_diffusion/latent_distributions/comparison_<timestamp>.png` |
+| Latent distribution statistics | `reports/outputs/part_b_diffusion/latent_distributions/stats_<timestamp>.json` |
 
 ---
 
@@ -99,4 +99,4 @@ Where `<mode>` is one of: `train`, `sample`, `fid`, `plot_latents`, `all`
 
 - **Sample images**: When `sampling.num_samples` is specified, multiple grids are saved (e.g., 256 samples with grid_size 8 produces 4 images)
 - **VAE encoder**: Frozen during DDPM training in latent-space mode
-- **Dependencies**: Latent-space DDPM uses VAE classes from `src/part_a_vaes/vae_priors_temp.py`
+- **Dependencies**: Latent-space DDPM uses VAE classes from `src/part_a_vaes/vae_priors.py`

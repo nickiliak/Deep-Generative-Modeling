@@ -15,16 +15,16 @@ model:
 
 # Training settings
 training:
-  epochs: 60
+  epochs: 70
   lr: 1.0e-3
   device: cuda  # Options: cpu, cuda, mps
 
 # Output paths
 paths:
-  model_dir: models
+  model_dir: models/part_b_diffusion
   model_name: ddpm_unet_T{T}_epochs{epochs}.pt
-  fid_output_dir: reports/outputs/ddpm_unet
-  samples_dir: reports/samples
+  fid_output_dir: reports/outputs/part_b_diffusion/fid
+  samples_dir: reports/outputs/part_b_diffusion/samples
 
 # FID evaluation settings
 fid:

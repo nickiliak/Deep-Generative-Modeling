@@ -436,7 +436,7 @@ def run_plot_latents(config: dict):
     model.eval()
     
     # Create output directory for latent distribution comparisons
-    output_dir = 'reports/outputs/latent_distributions'
+    output_dir = 'reports/outputs/part_b_diffusion/latent_distributions'
     os.makedirs(output_dir, exist_ok=True)
     
     # Plot and compare distributions

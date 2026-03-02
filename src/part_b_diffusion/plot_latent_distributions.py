@@ -67,7 +67,7 @@ def project_with_pca(reference, arrays):
         return reference, arrays
 
 
-def compare_latent_distributions(model, data_loader, device='cpu', n_samples=5000, save_dir='reports/outputs/latent_distributions'):
+def compare_latent_distributions(model, data_loader, device='cpu', n_samples=5000, save_dir='reports/outputs/part_b_diffusion/latent_distributions'):
     """Collect prior, aggregate posterior, and DDPM latent samples, project to 2D and plot.
 
     Saves PNG and JSON stats to `save_dir` with timestamped filenames.
@@ -77,7 +77,7 @@ def compare_latent_distributions(model, data_loader, device='cpu', n_samples=500
     data_loader: DataLoader for computing aggregate posterior
     device: Device to run on
     n_samples: Number of samples to collect for each distribution
-    save_dir: Output directory (default: reports/outputs/latent_distributions)
+    save_dir: Output directory (default: reports/outputs/part_b_diffusion/latent_distributions)
     """
     os.makedirs(save_dir, exist_ok=True)
     t0 = time.perf_counter()

@@ -9,7 +9,8 @@ import torch
 import torch.nn as nn
 
 from part_b_diffusion.ddpm import DDPM
-from part_a_vaes.vae_priors import VAE
+from part_a_vaes.vae import VAE
+from part_a_vaes.run_vae import build_model
 
 
 def train_vae(vae: VAE, train_loader, epochs: int, device: str):
@@ -172,7 +173,6 @@ class DDPMLatent(nn.Module):
 def build_latent_model(config: dict, device: str) -> DDPMLatent:
     """Build DDPMLatent model from config."""
     from part_b_diffusion.ddpm import DDPM, FcNetwork
-    from part_a_vaes.vae_priors import build_model
     
     vae_cfg = config['vae']
     model_cfg = config['model']
