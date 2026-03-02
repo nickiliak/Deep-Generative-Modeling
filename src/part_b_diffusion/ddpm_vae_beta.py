@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 
 from part_b_diffusion.ddpm import DDPM
-from part_a_vaes.vae_priors_temp import GaussianPrior, Encoder, GaussianDecoder, VAE
+from part_a_vaes.vae_priors import VAE
 
 
 def train_vae(vae: VAE, train_loader, epochs: int, device: str):
@@ -28,39 +28,6 @@ def train_vae(vae: VAE, train_loader, epochs: int, device: str):
             total_loss += loss.item()
         avg_loss = total_loss / len(train_loader)
         print(f"  VAE Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
-
-
-def build_vae(latent_dim: int, beta: float, decoder_std: float = 0.5, device: str = 'cpu') -> VAE:
-    """
-    Build a β-VAE with Gaussian decoder for MNIST.
-    
-    Parameters:
-    latent_dim: Dimension of latent space
-    beta: KL weight for β-VAE
-    decoder_std: Standard deviation for Gaussian decoder
-    device: Device to place model on
-    """
-    # Encoder network
-    encoder_net = nn.Sequential(
-        nn.Flatten(),
-        nn.Linear(784, 512), nn.ReLU(),
-        nn.Linear(512, 512), nn.ReLU(),
-        nn.Linear(512, latent_dim * 2),
-    )
-    
-    # Decoder network
-    decoder_net = nn.Sequential(
-        nn.Linear(latent_dim, 512), nn.ReLU(),
-        nn.Linear(512, 512), nn.ReLU(),
-        nn.Linear(512, 784),
-        nn.Unflatten(-1, (28, 28)),
-    )
-    
-    prior = GaussianPrior(latent_dim)
-    encoder = Encoder(encoder_net)
-    decoder = GaussianDecoder(decoder_net, std=decoder_std, learnable_std=False)
-    
-    return VAE(prior, decoder, encoder, beta=beta).to(device)
 
 
 class DDPMLatent(nn.Module):
@@ -205,16 +172,19 @@ class DDPMLatent(nn.Module):
 def build_latent_model(config: dict, device: str) -> DDPMLatent:
     """Build DDPMLatent model from config."""
     from part_b_diffusion.ddpm import DDPM, FcNetwork
+    from part_a_vaes.vae_priors import build_model
     
     vae_cfg = config['vae']
     model_cfg = config['model']
     
-    # Build VAE
-    vae = build_vae(
-        latent_dim=vae_cfg['latent_dim'],
+    # Build VAE with Gaussian decoder
+    vae = build_model(
+        prior_name='gaussian',
+        M=vae_cfg['latent_dim'],
+        device=device,
+        decoder_type='gaussian',
         beta=vae_cfg['beta'],
-        decoder_std=vae_cfg.get('decoder_std', 0.5),
-        device=device
+        decoder_std=vae_cfg.get('decoder_std', 0.5)
     )
     
     # Build DDPM network for latent space

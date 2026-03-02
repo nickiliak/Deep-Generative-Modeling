@@ -15,10 +15,9 @@ from torchvision.utils import save_image
 import time
 
 from part_b_diffusion.ddpm import DDPM, FcNetwork, train, build_model
-from part_b_diffusion.ddpm_vae_beta import DDPMLatent, build_vae, train_vae, build_latent_model
+from part_b_diffusion.ddpm_vae_beta import DDPMLatent, train_vae, build_latent_model
 from part_b_diffusion.utils import is_latent_mode, load_config, get_model_path, get_vae_path, preprocess_mnist
 from part_b_diffusion.plot_latent_distributions import compare_latent_distributions
-from part_a_vaes.vae_priors_temp import VAE
 from shared.fid_utils import compute_fid
 from shared.data_loader import get_mnist_raw
 
@@ -448,7 +447,7 @@ def run_plot_latents(config: dict):
         n_samples=config.get('plot_latents', {}).get('n_samples', 5000),
         save_dir=output_dir
     )
-    print(f"[OK] Latent distribution plots saved to {samples_dir}")
+    print(f"[OK] Latent distribution plots saved to {output_dir}")
 
 
 def main():

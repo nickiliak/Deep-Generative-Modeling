@@ -229,23 +229,66 @@ class BernoulliDecoder(nn.Module):
         return td.Independent(td.Bernoulli(logits=logits), 2)
 
 
+class GaussianDecoder(nn.Module):
+    """
+    Gaussian decoder: p(x|z) = N(x | μ(z), σ²I)
+    
+    Parameters:
+    decoder_net: [torch.nn.Module]
+        Network that outputs mean μ(z).
+    std: [float]
+        Standard deviation (default: 0.5).
+    learnable_std: [bool]
+        Whether std is learnable (default: False).
+    """
+    def __init__(self, decoder_net, std=0.5, learnable_std=False):
+        super().__init__()
+        self.decoder_net = decoder_net
+        
+        if learnable_std:
+            self.log_std = nn.Parameter(torch.tensor(np.log(std)))
+        else:
+            self.register_buffer('log_std', torch.tensor(np.log(std)))
+    
+    def forward(self, z):
+        """
+        Given latent variables, return Gaussian distribution over data space.
+        """
+        mean = self.decoder_net(z)
+        std = torch.exp(self.log_std)
+        return td.Independent(td.Normal(mean, std), 2)
+
+
 # VAE
 
 class VAE(nn.Module):
-    def __init__(self, prior, decoder, encoder):
+    def __init__(self, prior, decoder, encoder, beta=1.0):
+        """
+        Variational Autoencoder with optional β weighting for KL divergence.
+
+        Parameters:
+        prior: Prior distribution over latent space (Gaussian, MoG, or Flow)
+        decoder: Decoder distribution over data space
+        encoder: Encoder distribution over latent space
+        beta: Weight for KL divergence term (default: 1.0). Use beta < 1 for more 
+              reconstruction focus, beta > 1 for more disentanglement.
+        """
         super().__init__()
         self.prior   = prior
         self.decoder = decoder
         self.encoder = encoder
+        self.beta = beta
 
     def elbo(self, x):
         """
-        ELBO = E_q[log p(x|z)] - KL(q(z|x) || p(z))
+        ELBO = E_q[log p(x|z)] - β*KL(q(z|x) || p(z))
 
         - GaussianPrior: KL in closed form (exact, most stable).
         - MoGPrior:      Monte Carlo KL: log q(z) - log p(z),  z ~ q(z|x)
         - FlowPrior:     Monte Carlo KL: log q(z) - log p_flow(z),  z ~ q(z|x)
                          where log p_flow uses the inverse flow + base density.
+        
+        The KL term is weighted by self.beta to support β-VAE variants.
         """
         q   = self.encoder(x)
         z   = q.rsample()
@@ -259,7 +302,7 @@ class VAE(nn.Module):
             log_p = self.prior.log_prob(z)                # log p(z)
             kl    = log_q - log_p                         # shape: (batch,)
 
-        return torch.mean(rec - kl)
+        return torch.mean(rec - self.beta * kl)
 
     def sample(self, n=1):
         """
@@ -514,28 +557,46 @@ def plot_samples(model, device, prior_name, save_path, n_samples=64):
     plt.show()
 
 
-# Build model
+# Build model helpers
 
-def build_model(prior_name, M, device, flow_layers=4, flow_hidden=64):
-    """
-    Architecture (identical for all priors):
-      Encoder: Flatten -> Linear(784,512) -> ReLU -> Linear(512,512) -> ReLU -> Linear(512,2M)
-               Output split into mean and log-std for q(z|x).
-      Decoder: Linear(M,512) -> ReLU -> Linear(512,512) -> ReLU -> Linear(512,784) -> Unflatten(28,28)
-               Outputs logits for a Bernoulli distribution over 28x28 pixels.
-    """
-    encoder_net = nn.Sequential(
+def build_encoder_net(M: int) -> nn.Module:
+    """Build encoder network for MNIST (28x28 -> 2M latent dims)."""
+    return nn.Sequential(
         nn.Flatten(),
         nn.Linear(784, 512), nn.ReLU(),
         nn.Linear(512, 512), nn.ReLU(),
         nn.Linear(512, M * 2),
     )
-    decoder_net = nn.Sequential(
+
+
+def build_decoder_net(M: int) -> nn.Module:
+    """Build decoder network for MNIST (M latent dims -> 28x28)."""
+    return nn.Sequential(
         nn.Linear(M, 512), nn.ReLU(),
         nn.Linear(512, 512), nn.ReLU(),
         nn.Linear(512, 784),
         nn.Unflatten(-1, (28, 28)),
     )
+
+
+def build_model(prior_name, M, device, flow_layers=4, flow_hidden=64, decoder_type='bernoulli', beta=1.0, decoder_std=0.5):
+    """
+    Build a VAE with specified prior and decoder type.
+    
+    Parameters:
+    prior_name: 'gaussian', 'mog', or 'flow'
+    M: Latent dimension
+    device: Device to place model on
+    flow_layers: Number of coupling layers for FlowPrior (default: 4)
+    flow_hidden: Hidden dimension for FlowPrior (default: 64)
+    decoder_type: 'bernoulli' for binary MNIST or 'gaussian' for continuous (default: 'bernoulli')
+    beta: KL weight for β-VAE (default: 1.0)
+    decoder_std: Standard deviation for Gaussian decoder (default: 0.5)
+    """
+    encoder_net = build_encoder_net(M)
+    decoder_net = build_decoder_net(M)
+    
+    # Build prior
     if prior_name == "gaussian":
         prior = GaussianPrior(M)
     elif prior_name == "mog":
@@ -544,8 +605,17 @@ def build_model(prior_name, M, device, flow_layers=4, flow_hidden=64):
         prior = FlowPrior(M, num_layers=flow_layers, hidden_dim=flow_hidden)
     else:
         raise ValueError(f"Unknown prior: {prior_name}")
-
-    return VAE(prior, BernoulliDecoder(decoder_net), Encoder(encoder_net)).to(device)
+    
+    # Build decoder
+    if decoder_type == 'bernoulli':
+        decoder = BernoulliDecoder(decoder_net)
+    elif decoder_type == 'gaussian':
+        decoder = GaussianDecoder(decoder_net, std=decoder_std, learnable_std=False)
+    else:
+        raise ValueError(f"Unknown decoder type: {decoder_type}")
+    
+    encoder = Encoder(encoder_net)
+    return VAE(prior, decoder, encoder, beta=beta).to(device)
 
 
 # Main
