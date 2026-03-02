@@ -7,7 +7,6 @@ The VAE encoder is frozen during DDPM training.
 
 import torch
 import torch.nn as nn
-import numpy as np
 
 from part_b_diffusion.ddpm import DDPM
 from part_a_vaes.vae_priors_temp import GaussianPrior, Encoder, GaussianDecoder, VAE
