@@ -70,7 +70,6 @@ class DDPM(nn.Module):
         """
         # Sample x_t for t=T (i.e., Gaussian noise)
         x_t = torch.randn(shape).to(self.alpha.device)
-        print(f"[DEBUG] Initial x_T - min: {x_t.min():.4f}, max: {x_t.max():.4f}")
 
         # Sample x_t given x_{t+1} until x_0 is sampled
         for t in range(self.T-1, -1, -1):
@@ -84,9 +83,6 @@ class DDPM(nn.Module):
             # Normalize t to [0, 1]
             t_input = torch.full((shape[0], 1), t / self.T, device=x_t.device, dtype=torch.float)
             e_theta = self.network(x_t, t_input)
-            
-            if t % 100 == 0:
-                print(f"[DEBUG] Step {t}: e_theta - min: {e_theta.min():.4f}, max: {e_theta.max():.4f}, mean: {e_theta.mean():.4f}")
             
             # Ensure e_theta doesn't have NaN
             if torch.isnan(e_theta).any():
@@ -103,7 +99,6 @@ class DDPM(nn.Module):
             
             x_t = denoise + torch.sqrt(self.beta[t]) * z
         
-        print(f"[DEBUG] Final x_0 - min: {x_t.min():.4f}, max: {x_t.max():.4f}, mean: {x_t.mean():.4f}")
         return x_t
 
     def loss(self, x):
@@ -185,3 +180,24 @@ class FcNetwork(nn.Module):
         """
         x_t_cat = torch.cat([x, t], dim=1)
         return self.network(x_t_cat)
+
+
+def build_model(config: dict, device: str) -> DDPM:
+    """Build DDPM model from config."""
+    network_type = config['model']['network']
+    
+    if network_type == 'unet':
+        from part_b_diffusion.unet import Unet
+        network = Unet()
+    elif network_type == 'fc':
+        network = FcNetwork(28 * 28, 64)
+    else:
+        raise ValueError(f"Unknown network type: {network_type}")
+    
+    model = DDPM(
+        network=network,
+        beta_1=config['model']['beta_1'],
+        beta_T=config['model']['beta_T'],
+        T=config['model']['T']
+    )
+    return model.to(device)

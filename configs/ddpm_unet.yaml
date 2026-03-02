@@ -15,7 +15,7 @@ model:
 
 # Training settings
 training:
-  epochs: 80
+  epochs: 1
   lr: 1.0e-3
   device: cuda  # Options: cpu, cuda, mps
 
@@ -33,5 +33,5 @@ fid:
 
 # Sampling settings
 sampling:
-  num_samples: 64
+  num_samples: 256
   grid_size: 8

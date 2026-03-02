@@ -1,0 +1,24 @@
+{
+  "timestamp": "20260302_155124",
+  "fid_score": 5.5613950225179245,
+  "num_samples": 512,
+  "sampling_time_sec": 2.3603182859997105,
+  "samples_per_sec": 216.91989721765125,
+  "mode": "latent",
+  "vae": {
+    "beta": 0.01,
+    "latent_dim": 32,
+    "decoder": "gaussian"
+  },
+  "ddpm": {
+    "network": "fc",
+    "T": 1000,
+    "beta_1": 0.0001,
+    "beta_T": 0.02
+  },
+  "training": {
+    "vae_epochs": 20,
+    "ddpm_epochs": 20,
+    "lr": 0.001
+  }
+}

@@ -1,12 +1,4 @@
 #!/usr/bin/env python3
-"""
-DDPM Runner - Load config from YAML and run training/sampling/evaluation.
-Usage (from repo root):
-    python -m src.part_b_diffusion.run_ddpm train --config configs/ddpm_unet.yaml
-    python -m src.part_b_diffusion.run_ddpm sample --config configs/ddpm_unet.yaml
-    python -m src.part_b_diffusion.run_ddpm fid --config configs/ddpm_unet.yaml
-"""
-
 import sys
 import os
 
@@ -23,9 +15,8 @@ from pathlib import Path
 from torchvision.utils import save_image
 import time
 
-from part_b_diffusion.ddpm import DDPM, FcNetwork, train
-from part_b_diffusion.unet import Unet
-from part_b_diffusion.ddpm_vae_beta import DDPMLatent, build_vae
+from part_b_diffusion.ddpm import DDPM, FcNetwork, train, build_model
+from part_b_diffusion.ddpm_vae_beta import DDPMLatent, build_vae, train_vae, build_latent_model
 from part_a_vaes.vae_priors_temp import VAE
 from shared.fid_utils import compute_fid
 from shared.data_loader import get_mnist_raw
@@ -114,26 +105,6 @@ def get_data_loaders_2d(config: dict):
     return train_loader, test_loader
 
 
-def build_model(config: dict, device: str) -> DDPM:
-    """Build DDPM model from config."""
-    network_type = config['model']['network']
-    
-    if network_type == 'unet':
-        network = Unet()
-    elif network_type == 'fc':
-        network = FcNetwork(28 * 28, 64)
-    else:
-        raise ValueError(f"Unknown network type: {network_type}")
-    
-    model = DDPM(
-        network=network,
-        beta_1=config['model']['beta_1'],
-        beta_T=config['model']['beta_T'],
-        T=config['model']['T']
-    )
-    return model.to(device)
-
-
 def run_train(config: dict):
     """Train the DDPM model."""
     device = config['training']['device']
@@ -170,67 +141,115 @@ def run_train(config: dict):
 
 
 def run_sample(config: dict):
-    """Generate samples from trained model."""
+    """Generate samples from trained model (pixel-space or latent-space)."""
     device = config['training']['device']
-    model_path = get_model_path(config)
-    
-    # Build and load model
-    model = build_model(config, device)
-    model.load_state_dict(torch.load(model_path, map_location=device))
-    model.eval()
-    
+    latent = is_latent_mode(config)
     num_samples = config['sampling']['num_samples']
-    D = 28 * 28
     
     print(f"Generating {num_samples} samples...")
-    # Time sampling (wall-clock). Make sure to sync CUDA if used.
-    device_str = device if isinstance(device, str) else str(device)
-    with torch.no_grad():
-        start = time.perf_counter()
-        samples = model.sample((num_samples, D)).cpu()
-        if 'cuda' in device_str:
-            torch.cuda.synchronize()
-        end = time.perf_counter()
-    elapsed = end - start
-    s_per = num_samples / elapsed if elapsed > 0 else float('inf')
-    print(f"[TIMING] DDPM sampling: {elapsed:.4f} s for {num_samples} samples ({s_per:.2f} samples/s)")
     
-    print(f"[DEBUG] Raw samples - min: {samples.min():.4f}, max: {samples.max():.4f}, mean: {samples.mean():.4f}")
+    if latent:
+        # Build and load latent model
+        model = build_latent_model(config, device)
+        vae_path = get_vae_path(config)
+        vae_checkpoint = config['vae'].get('checkpoint') or vae_path
+        model.vae.load_state_dict(torch.load(vae_checkpoint, map_location=device))
+        model_path = get_model_path(config)
+        model.ddpm.load_state_dict(torch.load(model_path, map_location=device))
+        model.eval()
+        
+        # Sample from latent DDPM
+        samples, elapsed, s_per = sample_from_latent_model(model, num_samples, device)
+        
+        # Additionally measure pure VAE prior sampling for comparison
+        try:
+            with torch.no_grad():
+                start_v = time.perf_counter()
+                vae_samples = model.vae.sample(num_samples).to(device)
+                if 'cuda' in str(device):
+                    torch.cuda.synchronize()
+                end_v = time.perf_counter()
+            elapsed_v = end_v - start_v
+            s_per_v = num_samples / elapsed_v if elapsed_v > 0 else float('inf')
+            print(f"[TIMING] VAE prior sampling: {elapsed_v:.4f} s for {num_samples} samples ({s_per_v:.2f} samples/s)")
+        except Exception:
+            print("[TIMING] VAE prior sampling: failed to run/sample (skipped)")
+        
+        # Post-process: clamp to [0, 1]
+        samples = samples.clamp(0, 1)
+        samples = samples.unsqueeze(1)  # Add channel dim: (n, 1, 28, 28)
+    else:
+        # Build and load pixel-space model
+        model = build_model(config, device)
+        model_path = get_model_path(config)
+        model.load_state_dict(torch.load(model_path, map_location=device))
+        model.eval()
+        
+        # Sample from pixel-space DDPM
+        D = 28 * 28
+        device_str = device if isinstance(device, str) else str(device)
+        with torch.no_grad():
+            start = time.perf_counter()
+            samples = model.sample((num_samples, D)).cpu()
+            if 'cuda' in device_str:
+                torch.cuda.synchronize()
+            end = time.perf_counter()
+        elapsed = end - start
+        s_per = num_samples / elapsed if elapsed > 0 else float('inf')
+        print(f"[TIMING] DDPM sampling: {elapsed:.4f} s for {num_samples} samples ({s_per:.2f} samples/s)")
+        
+        # Post-process: transform from [-1, 1] to [0, 1]
+        samples = samples / 2 + 0.5
+        samples = samples.clamp(0, 1)
+        samples = samples.reshape(num_samples, 1, 28, 28)
     
-    # Transform back to [0, 1]
-    samples = samples / 2 + 0.5
-    print(f"[DEBUG] After scaling - min: {samples.min():.4f}, max: {samples.max():.4f}, mean: {samples.mean():.4f}")
-    
-    samples = samples.clamp(0, 1)
-    print(f"[DEBUG] After clamping - min: {samples.min():.4f}, max: {samples.max():.4f}, mean: {samples.mean():.4f}")
-    
-    samples = samples.reshape(num_samples, 1, 28, 28)
-     
     # Save samples
     samples_dir = config['paths']['samples_dir']
     os.makedirs(samples_dir, exist_ok=True)
     
     grid_size = config['sampling']['grid_size']
-    sample_path = os.path.join(samples_dir, f"ddpm_{config['model']['network']}_samples.png")
-    save_image(samples[:grid_size**2], sample_path, nrow=grid_size)
-    print(f"[OK] Samples saved -> {sample_path}")
+    images_per_grid = grid_size ** 2
+    num_grids = num_samples // images_per_grid
+    
+    # Save each grid as a separate image
+    for grid_idx in range(num_grids):
+        start_idx = grid_idx * images_per_grid
+        end_idx = start_idx + images_per_grid
+        grid_samples = samples[start_idx:end_idx]
+        
+        if latent:
+            sample_path = os.path.join(samples_dir, f"ddpm_latent_z{config['vae']['latent_dim']}_samples_{grid_idx+1}.png")
+        else:
+            sample_path = os.path.join(samples_dir, f"ddpm_{config['model']['network']}_samples_{grid_idx+1}.png")
+        
+        save_image(grid_samples, sample_path, nrow=grid_size)
+        print(f"[OK] Samples saved -> {sample_path}")
 
 
 def run_fid(config: dict):
-    """Compute FID score and save results."""
+    """Compute FID score for both pixel-space and latent-space DDPM."""
     device = config['training']['device']
-    model_path = get_model_path(config)
+    latent = is_latent_mode(config)
     
     # Build and load model
-    model = build_model(config, device)
-    model.load_state_dict(torch.load(model_path, map_location=device))
+    if latent:
+        model = build_latent_model(config, device)
+        vae_path = get_vae_path(config)
+        vae_checkpoint = config['vae'].get('checkpoint') or vae_path
+        model.vae.load_state_dict(torch.load(vae_checkpoint, map_location=device))
+        test_loader = get_data_loaders_2d(config)[1]
+    else:
+        model = build_model(config, device)
+        test_loader = get_data_loaders(config)[1]
+    
+    model_path = get_model_path(config)
+    if latent:
+        model.ddpm.load_state_dict(torch.load(model_path, map_location=device))
+    else:
+        model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
     
-    # Get real test data
-    _, test_loader = get_data_loaders(config)
-    
     num_samples = config['fid']['num_samples']
-    D = 28 * 28
     
     # Collect real images
     print(f"Collecting {num_samples} real images...")
@@ -240,21 +259,31 @@ def run_fid(config: dict):
         if sum(len(b) for b in real_images) >= num_samples:
             break
     real_images = torch.cat(real_images, dim=0)[:num_samples]
-    real_images = real_images.reshape(num_samples, 1, 28, 28).to(device)
+    
+    # Reshape real images
+    if latent:
+        real_images = real_images.unsqueeze(1).to(device)  # (n, 1, 28, 28)
+    else:
+        real_images = real_images.reshape(num_samples, 1, 28, 28).to(device)
     
     # Generate samples
     print(f"Generating {num_samples} samples...")
-    device_str = device if isinstance(device, str) else str(device)
-    with torch.no_grad():
-        start = time.perf_counter()
-        gen_images = model.sample((num_samples, D))
-        if 'cuda' in device_str:
-            torch.cuda.synchronize()
-        end = time.perf_counter()
-    elapsed = end - start
-    s_per = num_samples / elapsed if elapsed > 0 else float('inf')
-    print(f"[TIMING] DDPM sampling: {elapsed:.4f} s for {num_samples} samples ({s_per:.2f} samples/s)")
-    gen_images = gen_images.reshape(num_samples, 1, 28, 28).to(device)
+    if latent:
+        gen_images, elapsed, s_per = sample_from_latent_model(model, num_samples, device)
+        gen_images = gen_images.unsqueeze(1).to(device)  # (n, 1, 28, 28)
+    else:
+        D = 28 * 28
+        device_str = device if isinstance(device, str) else str(device)
+        with torch.no_grad():
+            start = time.perf_counter()
+            gen_images = model.sample((num_samples, D))
+            if 'cuda' in device_str:
+                torch.cuda.synchronize()
+            end = time.perf_counter()
+        elapsed = end - start
+        s_per = num_samples / elapsed if elapsed > 0 else float('inf')
+        print(f"[TIMING] DDPM sampling: {elapsed:.4f} s for {num_samples} samples ({s_per:.2f} samples/s)")
+        gen_images = gen_images.reshape(num_samples, 1, 28, 28).to(device)
     
     # Compute FID
     print("Computing FID score...")
@@ -267,29 +296,54 @@ def run_fid(config: dict):
     output_dir = config['paths']['fid_output_dir']
     os.makedirs(output_dir, exist_ok=True)
     
-    # Create run results
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    result = {
-        "timestamp": timestamp,
-        "fid_score": float(fid_score),
-        "num_samples": num_samples,
-        "sampling_time_sec": float(elapsed),
-        "samples_per_sec": float(s_per),
-        "model": {
-            "network": config['model']['network'],
-            "T": config['model']['T'],
-            "beta_1": config['model']['beta_1'],
-            "beta_T": config['model']['beta_T']
-        },
-        "training": {
-            "epochs": config['training']['epochs'],
-            "batch_size": config['data']['batch_size'],
-            "lr": config['training']['lr']
-        },
-        "model_path": model_path
-    }
     
-    # Save JSON
+    if latent:
+        result = {
+            "timestamp": timestamp,
+            "fid_score": float(fid_score),
+            "num_samples": num_samples,
+            "sampling_time_sec": float(elapsed),
+            "samples_per_sec": float(s_per),
+            "mode": "latent",
+            "vae": {
+                "beta": config['vae']['beta'],
+                "latent_dim": config['vae']['latent_dim'],
+                "decoder": config['vae']['decoder']
+            },
+            "ddpm": {
+                "network": config['model']['network'],
+                "T": config['model']['T'],
+                "beta_1": config['model']['beta_1'],
+                "beta_T": config['model']['beta_T']
+            },
+            "training": {
+                "vae_epochs": config['training']['vae_epochs'],
+                "ddpm_epochs": config['training']['ddpm_epochs'],
+                "lr": config['training']['lr']
+            }
+        }
+    else:
+        result = {
+            "timestamp": timestamp,
+            "fid_score": float(fid_score),
+            "num_samples": num_samples,
+            "sampling_time_sec": float(elapsed),
+            "samples_per_sec": float(s_per),
+            "model": {
+                "network": config['model']['network'],
+                "T": config['model']['T'],
+                "beta_1": config['model']['beta_1'],
+                "beta_T": config['model']['beta_T']
+            },
+            "training": {
+                "epochs": config['training']['epochs'],
+                "batch_size": config['data']['batch_size'],
+                "lr": config['training']['lr']
+            },
+            "model_path": model_path
+        }
+    
     json_path = os.path.join(output_dir, f"run_{timestamp}.json")
     with open(json_path, 'w') as f:
         json.dump(result, f, indent=2)
@@ -301,54 +355,6 @@ def run_fid(config: dict):
 # ============================================================================
 # Latent-Space DDPM Functions
 # ============================================================================
-
-def train_vae(vae: VAE, train_loader, epochs: int, device: str):
-    """Train the β-VAE model."""
-    optimizer = torch.optim.Adam(vae.parameters(), lr=1e-3)
-    vae.train()
-    
-    for epoch in range(epochs):
-        total_loss = 0
-        for batch in train_loader:
-            batch = batch.to(device)
-            optimizer.zero_grad()
-            loss = vae(batch)  # Forward returns -elbo (negative ELBO)
-            loss.backward()
-            optimizer.step()
-            total_loss += loss.item()
-        avg_loss = total_loss / len(train_loader)
-        print(f"  VAE Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
-
-
-def build_latent_model(config: dict, device: str) -> DDPMLatent:
-    """Build DDPMLatent model from config."""
-    vae_cfg = config['vae']
-    model_cfg = config['model']
-    
-    # Build VAE
-    vae = build_vae(
-        latent_dim=vae_cfg['latent_dim'],
-        beta=vae_cfg['beta'],
-        decoder_std=vae_cfg.get('decoder_std', 0.5),
-        device=device
-    )
-    
-    # Build DDPM network for latent space
-    latent_dim = vae_cfg['latent_dim']
-    if model_cfg['network'] == 'fc':
-        network = FcNetwork(latent_dim, 64)
-    else:
-        raise ValueError(f"Network '{model_cfg['network']}' not supported for latent mode (use 'fc')")
-    
-    ddpm = DDPM(
-        network=network,
-        beta_1=model_cfg['beta_1'],
-        beta_T=model_cfg['beta_T'],
-        T=model_cfg['T']
-    ).to(device)
-    
-    return DDPMLatent(vae, ddpm, freeze_encoder=True)
-
 
 def sample_from_latent_model(model, num_samples: int, device: str):
     """Generate samples from latent DDPM with timing."""
@@ -413,178 +419,15 @@ def run_train_latent(config: dict):
             param.requires_grad = False
         model.vae.eval()
     
-    # Inspect latent distribution from VAE
-    print(f"\n[INSPECT] Analyzing VAE latent distribution...")
-    with torch.no_grad():
-        latent_stats = []
-        for batch in train_loader:
-            batch = batch.to(device)
-            q = model.vae.encoder(batch)
-            z = q.rsample()
-            latent_stats.append(z.cpu())
-            if len(latent_stats) >= 5:  # Just a few batches
-                break
-        
-        all_z = torch.cat(latent_stats, dim=0)
-        print(f"  VAE latent - min: {all_z.min():.4f}, max: {all_z.max():.4f}")
-        print(f"  VAE latent - mean: {all_z.mean():.4f}, std: {all_z.std():.4f}")
-        print(f"  VAE latent - mean per dim: {all_z.mean(dim=0).abs().max():.4f}")
-        print(f"  VAE latent - std per dim: {all_z.std(dim=0).mean():.4f}")
-    
     # Step 2: Train DDPM in latent space
     print(f"\n[DDPM] Training in latent space for {config['training']['ddpm_epochs']} epochs...")
-    optimizer = torch.optim.Adam(model.ddpm.parameters(), lr=config['training']['lr'])
-    
-    for epoch in range(config['training']['ddpm_epochs']):
-        total_loss = 0
-        for batch in train_loader:
-            batch = batch.to(device)
-            optimizer.zero_grad()
-            loss = model.loss(batch)
-            loss.backward()
-            optimizer.step()
-            total_loss += loss.item()
-        avg_loss = total_loss / len(train_loader)
-        print(f"  DDPM Epoch {epoch+1}/{config['training']['ddpm_epochs']}, Loss: {avg_loss:.4f}")
+    model.train_ddpm(train_loader, config['training']['ddpm_epochs'], device)
     
     # Save DDPM
     model_path = get_model_path(config)
     os.makedirs(os.path.dirname(model_path) if os.path.dirname(model_path) else '.', exist_ok=True)
     torch.save(model.ddpm.state_dict(), model_path)
     print(f"\n[OK] DDPM saved -> {model_path}")
-
-
-def run_sample_latent(config: dict):
-    """Generate samples from latent DDPM."""
-    device = config['training']['device']
-    
-    # Build and load model
-    model = build_latent_model(config, device)
-    
-    # Load VAE
-    vae_path = get_vae_path(config)
-    vae_checkpoint = config['vae'].get('checkpoint') or vae_path
-    model.vae.load_state_dict(torch.load(vae_checkpoint, map_location=device))
-    
-    # Load DDPM
-    model_path = get_model_path(config)
-    model.ddpm.load_state_dict(torch.load(model_path, map_location=device))
-    model.eval()
-    
-    num_samples = config['sampling']['num_samples']
-    
-    print(f"Generating {num_samples} samples from latent DDPM...")
-    samples, elapsed, s_per = sample_from_latent_model(model, num_samples, device)
-
-    # Additionally measure pure VAE prior sampling (z ~ p(z), x ~ p(x|z)) for comparison
-    try:
-        with torch.no_grad():
-            start_v = time.perf_counter()
-            vae_samples = model.vae.sample(num_samples).to(device)  # ensure device
-            if 'cuda' in str(device):
-                torch.cuda.synchronize()
-            end_v = time.perf_counter()
-        elapsed_v = end_v - start_v
-        s_per_v = num_samples / elapsed_v if elapsed_v > 0 else float('inf')
-        print(f"[TIMING] VAE prior sampling: {elapsed_v:.4f} s for {num_samples} samples ({s_per_v:.2f} samples/s)")
-    except Exception:
-        # If VAE sampling fails for any reason, skip timing but continue
-        print("[TIMING] VAE prior sampling: failed to run/sample (skipped)")
-    
-    # Clamp and reshape for saving
-    samples = samples.clamp(0, 1)
-    samples = samples.unsqueeze(1)  # Add channel dim: (n, 1, 28, 28)
-    
-    # Save samples
-    samples_dir = config['paths']['samples_dir']
-    os.makedirs(samples_dir, exist_ok=True)
-    
-    grid_size = config['sampling']['grid_size']
-    sample_path = os.path.join(samples_dir, f"ddpm_latent_z{config['vae']['latent_dim']}_samples.png")
-    save_image(samples[:grid_size**2], sample_path, nrow=grid_size)
-    print(f"[OK] Samples saved -> {sample_path}")
-
-
-def run_fid_latent(config: dict):
-    """Compute FID for latent DDPM."""
-    device = config['training']['device']
-    
-    # Build and load model
-    model = build_latent_model(config, device)
-    
-    # Load VAE
-    vae_path = get_vae_path(config)
-    vae_checkpoint = config['vae'].get('checkpoint') or vae_path
-    model.vae.load_state_dict(torch.load(vae_checkpoint, map_location=device))
-    
-    # Load DDPM
-    model_path = get_model_path(config)
-    model.ddpm.load_state_dict(torch.load(model_path, map_location=device))
-    model.eval()
-    
-    # Get real test data
-    _, test_loader = get_data_loaders_2d(config)
-    
-    num_samples = config['fid']['num_samples']
-    
-    # Collect real images
-    print(f"Collecting {num_samples} real images...")
-    real_images = []
-    for batch in test_loader:
-        real_images.append(batch)
-        if sum(len(b) for b in real_images) >= num_samples:
-            break
-    real_images = torch.cat(real_images, dim=0)[:num_samples]
-    real_images = real_images.unsqueeze(1).to(device)  # (n, 1, 28, 28)
-    
-    # Generate samples
-    print(f"Generating {num_samples} samples...")
-    gen_images, elapsed, s_per = sample_from_latent_model(model, num_samples, device)
-    gen_images = gen_images.unsqueeze(1).to(device)  # (n, 1, 28, 28)
-    
-    # Compute FID
-    print("Computing FID score...")
-    classifier_ckpt = config['fid']['classifier_ckpt']
-    fid_score = compute_fid(real_images, gen_images, device=device, classifier_ckpt=classifier_ckpt)
-    
-    print(f"\n[FID Score] {fid_score:.4f}")
-    
-    # Save results to JSON
-    output_dir = config['paths']['fid_output_dir']
-    os.makedirs(output_dir, exist_ok=True)
-    
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    result = {
-        "timestamp": timestamp,
-        "fid_score": float(fid_score),
-        "num_samples": num_samples,
-        "sampling_time_sec": float(elapsed),
-        "samples_per_sec": float(s_per),
-        "mode": "latent",
-        "vae": {
-            "beta": config['vae']['beta'],
-            "latent_dim": config['vae']['latent_dim'],
-            "decoder": config['vae']['decoder']
-        },
-        "ddpm": {
-            "network": config['model']['network'],
-            "T": config['model']['T'],
-            "beta_1": config['model']['beta_1'],
-            "beta_T": config['model']['beta_T']
-        },
-        "training": {
-            "vae_epochs": config['training']['vae_epochs'],
-            "ddpm_epochs": config['training']['ddpm_epochs'],
-            "lr": config['training']['lr']
-        }
-    }
-    
-    json_path = os.path.join(output_dir, f"run_{timestamp}.json")
-    with open(json_path, 'w') as f:
-        json.dump(result, f, indent=2)
-    
-    print(f"[OK] Results saved -> {json_path}")
-    return fid_score
 
 
 def main():
@@ -596,34 +439,25 @@ def main():
     args = parser.parse_args()
     
     config = load_config(args.config)
-    
-    # Determine if we're running in latent space mode
     latent_mode = is_latent_mode(config)
     
-    if latent_mode:
-        print("[Mode] Latent-space DDPM (β-VAE)")
-        if args.mode == 'train':
-            run_train_latent(config)
-        elif args.mode == 'sample':
-            run_sample_latent(config)
-        elif args.mode == 'fid':
-            run_fid_latent(config)
-        elif args.mode == 'all':
-            run_train_latent(config)
-            run_sample_latent(config)
-            run_fid_latent(config)
-    else:
-        print("[Mode] Pixel-space DDPM")
-        if args.mode == 'train':
-            run_train(config)
-        elif args.mode == 'sample':
-            run_sample(config)
-        elif args.mode == 'fid':
-            run_fid(config)
-        elif args.mode == 'all':
-            run_train(config)
-            run_sample(config)
-            run_fid(config)
+    mode_name = "Latent-space DDPM (β-VAE)" if latent_mode else "Pixel-space DDPM"
+    print(f"[Mode] {mode_name}")
+    
+    # Map mode -> functions to run
+    mode_map = {
+        'train': [run_train_latent if latent_mode else run_train],
+        'sample': [run_sample],
+        'fid': [run_fid],
+        'all': [
+            run_train_latent if latent_mode else run_train,
+            run_sample,
+            run_fid
+        ]
+    }
+    
+    for func in mode_map[args.mode]:
+        func(config)
 
 
 if __name__ == "__main__":

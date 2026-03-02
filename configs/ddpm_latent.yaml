@@ -25,8 +25,8 @@ model:
 
 # Training settings
 training:
-  vae_epochs: 20    # Epochs to train VAE (if checkpoint is null)
-  ddpm_epochs: 20   # Epochs to train DDPM in latent space
+  vae_epochs: 1    # Epochs to train VAE (if checkpoint is null)
+  ddpm_epochs: 1   # Epochs to train DDPM in latent space
   lr: 1.0e-3
   device: cuda  # Options: cpu, cuda, mps
 

@@ -13,6 +13,24 @@ from part_b_diffusion.ddpm import DDPM
 from part_a_vaes.vae_priors_temp import GaussianPrior, Encoder, GaussianDecoder, VAE
 
 
+def train_vae(vae: VAE, train_loader, epochs: int, device: str):
+    """Train the β-VAE model."""
+    optimizer = torch.optim.Adam(vae.parameters(), lr=1e-3)
+    vae.train()
+    
+    for epoch in range(epochs):
+        total_loss = 0
+        for batch in train_loader:
+            batch = batch.to(device)
+            optimizer.zero_grad()
+            loss = vae(batch)  # Forward returns -elbo (negative ELBO)
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+        avg_loss = total_loss / len(train_loader)
+        print(f"  VAE Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
+
+
 def build_vae(latent_dim: int, beta: float, decoder_std: float = 0.5, device: str = 'cpu') -> VAE:
     """
     Build a β-VAE with Gaussian decoder for MNIST.
@@ -110,9 +128,6 @@ class DDPMLatent(nn.Module):
             # Call decoder directly without clamping
             mean = self.vae.decoder.decoder_net(z)
             
-            print(f"[DEBUG] Decoder output - min: {mean.min():.4f}, max: {mean.max():.4f}, mean: {mean.mean():.4f}")
-            print(f"[DEBUG] Decoder output - has NaN: {torch.isnan(mean).any()}")
-            
             # Only replace obvious errors (NaN/Inf)
             if torch.isnan(mean).any():
                 print("[WARNING] NaN detected in decoder output, replacing with zeros")
@@ -155,16 +170,66 @@ class DDPMLatent(nn.Module):
             # Sample from DDPM in latent space
             z_samples = self.ddpm.sample((n_samples, self.latent_dim))
             
-            print(f"[DEBUG] DDPM samples - min: {z_samples.min():.4f}, max: {z_samples.max():.4f}, mean: {z_samples.mean():.4f}")
-            print(f"[DEBUG] DDPM samples - has NaN: {torch.isnan(z_samples).any()}, has Inf: {torch.isinf(z_samples).any()}")
-            
             # Decode to images
             x_samples = self.decode(z_samples)
-            
-            print(f"[DEBUG] Decoded samples - min: {x_samples.min():.4f}, max: {x_samples.max():.4f}, mean: {x_samples.mean():.4f}")
             
         return x_samples
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Compute loss (for training)."""
         return self.loss(x)
+    
+    def train_ddpm(self, train_loader, epochs: int, device: str):
+        """
+        Train DDPM in latent space.
+        
+        Parameters:
+        train_loader: DataLoader for training data
+        epochs: Number of epochs
+        device: Device to train on
+        """
+        optimizer = torch.optim.Adam(self.ddpm.parameters(), lr=1e-3)
+        
+        for epoch in range(epochs):
+            total_loss = 0
+            for batch in train_loader:
+                batch = batch.to(device)
+                optimizer.zero_grad()
+                loss = self.loss(batch)
+                loss.backward()
+                optimizer.step()
+                total_loss += loss.item()
+            avg_loss = total_loss / len(train_loader)
+            print(f"  DDPM Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
+
+
+def build_latent_model(config: dict, device: str) -> DDPMLatent:
+    """Build DDPMLatent model from config."""
+    from part_b_diffusion.ddpm import DDPM, FcNetwork
+    
+    vae_cfg = config['vae']
+    model_cfg = config['model']
+    
+    # Build VAE
+    vae = build_vae(
+        latent_dim=vae_cfg['latent_dim'],
+        beta=vae_cfg['beta'],
+        decoder_std=vae_cfg.get('decoder_std', 0.5),
+        device=device
+    )
+    
+    # Build DDPM network for latent space
+    latent_dim = vae_cfg['latent_dim']
+    if model_cfg['network'] == 'fc':
+        network = FcNetwork(latent_dim, 64)
+    else:
+        raise ValueError(f"Network '{model_cfg['network']}' not supported for latent mode (use 'fc')")
+    
+    ddpm = DDPM(
+        network=network,
+        beta_1=model_cfg['beta_1'],
+        beta_T=model_cfg['beta_T'],
+        T=model_cfg['T']
+    ).to(device)
+    
+    return DDPMLatent(vae, ddpm, freeze_encoder=True)
