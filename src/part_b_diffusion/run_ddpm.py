@@ -8,7 +8,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import argparse
 import json
 import datetime
-import yaml
 import torch
 import numpy as np
 from pathlib import Path
@@ -17,49 +16,13 @@ import time
 
 from part_b_diffusion.ddpm import DDPM, FcNetwork, train, build_model
 from part_b_diffusion.ddpm_vae_beta import DDPMLatent, build_vae, train_vae, build_latent_model
+from part_b_diffusion.utils import is_latent_mode, load_config, get_model_path, get_vae_path, preprocess_mnist
 from part_a_vaes.vae_priors_temp import VAE
 from shared.fid_utils import compute_fid
 from shared.data_loader import get_mnist_raw
 
 
-def is_latent_mode(config: dict) -> bool:
-    """Check if config specifies latent-space DDPM."""
-    return config.get('mode', 'pixel') == 'latent'
 
-
-def load_config(config_path: str) -> dict:
-    """Load configuration from YAML file."""
-    with open(config_path, 'r') as f:
-        config = yaml.safe_load(f)
-    return config
-
-
-def get_model_path(config: dict) -> str:
-    """Generate model path from config."""
-    model_name = config['paths']['model_name']
-    # Replace placeholders
-    model_name = model_name.replace('{T}', str(config['model']['T']))
-    if is_latent_mode(config):
-        model_name = model_name.replace('{latent_dim}', str(config['vae']['latent_dim']))
-        model_name = model_name.replace('{epochs}', str(config['training']['ddpm_epochs']))
-    else:
-        model_name = model_name.replace('{epochs}', str(config['training']['epochs']))
-    return os.path.join(config['paths']['model_dir'], model_name)
-
-
-def get_vae_path(config: dict) -> str:
-    """Generate VAE model path from config."""
-    vae_name = config['paths']['vae_name']
-    vae_name = vae_name.replace('{beta}', str(config['vae']['beta']))
-    vae_name = vae_name.replace('{latent_dim}', str(config['vae']['latent_dim']))
-    return os.path.join(config['paths']['model_dir'], vae_name)
-
-def preprocess_mnist(x: torch.Tensor) -> torch.Tensor:
-    """Dequantize and scale MNIST images to [-1, 1]."""
-    x = x.float()  # Already [0, 1] from ToTensor()
-    x = x + torch.rand_like(x) / 256.0  # Dequantization noise
-    x = (x - 0.5) * 2.0  # Scale to [-1, 1]
-    return x
 
 def get_data_loaders(config: dict):
     """Create train and test data loaders."""

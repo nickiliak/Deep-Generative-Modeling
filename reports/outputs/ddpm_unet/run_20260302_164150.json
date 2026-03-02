@@ -1,0 +1,19 @@
+{
+  "timestamp": "20260302_164150",
+  "fid_score": 124.75193766798567,
+  "num_samples": 512,
+  "sampling_time_sec": 27.522999118999905,
+  "samples_per_sec": 18.60262385600819,
+  "model": {
+    "network": "unet",
+    "T": 1000,
+    "beta_1": 0.0001,
+    "beta_T": 0.02
+  },
+  "training": {
+    "epochs": 1,
+    "batch_size": 256,
+    "lr": 0.001
+  },
+  "model_path": "models/ddpm_unet_T1000_epochs1.pt"
+}
