@@ -3,7 +3,7 @@
 \usepackage[english]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage[a4paper, margin=1.3cm]{geometry}
+\usepackage[a4paper, margin=2cm]{geometry}
 \setlength{\columnsep}{0.4cm}
 \setlength{\parskip}{0.3ex}
 \setlength{\parindent}{0pt}
@@ -29,7 +29,7 @@
 \usepackage{fancyhdr}
 \pagestyle{fancy}
 \fancyhead[L]{02460-2026 Mini-project 1}
-\fancyhead[R]{s250201, s271828 \& s314159}
+\fancyhead[R]{s250201, s253777, s250199 \& s250202}
 
 % For including code
 % From https://www.overleaf.com/learn/latex/Code_listing
@@ -70,7 +70,7 @@
 %%% Main text part %%%
 
 \section*{Mini-project 1 in Advanced Machine Learning (02460)}
-by Nikolaos Iliakis (s250201), Konstantinos Bantos (s253777) \& Eve (s314159) on 05 March 2026
+by N. Iliakis (s250201), K. Bantos (s253777), T. Georgakopoulou (s250199),  Á. López (s250202) on 5/3/2026
 
 \begin{multicols}{2}
     \subsection*{Part A: Priors for variational autoencoders (VAEs)}
@@ -121,7 +121,7 @@ by Nikolaos Iliakis (s250201), Konstantinos Bantos (s253777) \& Eve (s314159) on
         \begin{center}
             \begin{tabular}{lcc}
                 \toprule
-                Model & FID & Sampling (samples/sec) \\
+                Model & FID & Samples/ \\
                 \midrule
                 Flow prior VAE (Part A) & 6.90 & 20638 \\
                 Latent DDPM ($\beta=10^{-6}$) & 5.46 & 2468 \\
@@ -136,7 +136,7 @@ by Nikolaos Iliakis (s250201), Konstantinos Bantos (s253777) \& Eve (s314159) on
     \begin{figure}[H]
         \centering
         \includegraphics[width=7cm,height=2.5cm]{report_images/latent_comparison.png}
-        \caption{$\beta$-VAE prior (left), aggregate posterior (center), and latent DDPM distribution (right). The DDPM learns to match the complex aggregate posterior better than the simple Gaussian prior.}
+        \caption{$\beta$-VAE prior (left), aggregate posterior (center), and latent DDPM distribution (right). The latent DDPM learns to match the complex aggregate posterior better than the simple Gaussian prior.}
         \label{fig:prior_comparison}
     \end{figure}
 \end{multicols}

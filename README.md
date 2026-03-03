@@ -4,8 +4,18 @@ Deep Generative Modeling - MNIST
 A team project implementing Variational Autoencoders (VAE) and Diffusion Probabilistic Models (DDPM) for MNIST generation.
 
 **Project split into two sub-teams:**
-- **Part A**: VAE with flexible priors (Gaussian, Mixture of Gaussians, Normalizing Flows)
-- **Part B**: Diffusion models (DDPM, Latent DDPM) with FID evaluation
+- **Part A**: VAE with flexible priors (Gaussian, MoG, Normalizing Flows) - Best performer: Flow-based prior (ELBO: -72.78)
+- **Part B**: Diffusion models (pixel-space UNet DDPM, latent DDPM with β-VAE) - Best performer: Latent DDPM at β=10⁻³ (FID: 4.67)
+
+## Key Results
+
+| Method | Metric | Value |
+|--------|--------|-------|
+| Flow-based VAE | Test ELBO | -72.78 ± 0.12 |
+| Latent DDPM (β=10⁻³) | FID Score | 4.67 ± 0.01 |
+| UNet DDPM (pixel-space) | FID Score | 10.17 ± 0.05 |
+| Latent DDPM | Sampling Speed | 2431 samples/sec |
+| Flow VAE | Sampling Speed | 20638 samples/sec |
 
 ## Project Organization
 
@@ -37,6 +47,8 @@ A team project implementing Variational Autoencoders (VAE) and Diffusion Probabi
 ```
 
 ## Setup
+
+See [reports/report.tex](reports/report.tex) for the full project report with architecture details, visualizations, and analysis.
 
 Install dependencies using `uv`:
 
