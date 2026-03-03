@@ -3,7 +3,19 @@
 \usepackage[english]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage[a4paper, margin=1cm]{geometry}
+\usepackage[a4paper, margin=1.3cm]{geometry}
+\setlength{\columnsep}{0.4cm}
+\setlength{\parskip}{0.3ex}
+\setlength{\parindent}{0pt}
+
+% Reduce spacing around section headings
+\usepackage{titlesec}
+\titlespacing*{\section}{0pt}{0.8ex}{0.4ex}
+\titlespacing*{\subsection}{0pt}{0.6ex}{0.2ex}
+
+% Reduce spacing in figures and tables
+\setlength{\abovecaptionskip}{2pt}
+\setlength{\belowcaptionskip}{2pt}
 \usepackage{amsmath,amsfonts,amssymb}
 \usepackage[colorlinks]{hyperref}
 \usepackage{multicol}
@@ -17,7 +29,7 @@
 \usepackage{fancyhdr}
 \pagestyle{fancy}
 \fancyhead[L]{02460-2026 Mini-project 1}
-\fancyhead[R]{s039894, s271828 \& s314159}
+\fancyhead[R]{s250201, s271828 \& s314159}
 
 % For including code
 % From https://www.overleaf.com/learn/latex/Code_listing
@@ -58,13 +70,27 @@
 %%% Main text part %%%
 
 \section*{Mini-project 1 in Advanced Machine Learning (02460)}
-by Alice (s039894), Bob (s271828) \& Eve (s314159) on 05 March 2026
+by Nikolaos Iliakis (s250201), Konstantinos Bantos (s253777) \& Eve (s314159) on 05 March 2026
 
 \begin{multicols}{2}
     \subsection*{Part A: Priors for variational autoencoders (VAEs)}
-    We consider three different priors for \textbf{Variational Autoencoders} (VAEs); a \textbf{standard Gaussian}, a \textbf{mixture of Gaussians} (MoG) and a \textbf{Flow-based} prior, For each of the three VAEs we report the results of 5 training runs. The architectures used for the encoder are the following; they both consist of three linear layers, each of the first two followed by a ReLU activation function. The first two layers of the encoder "learn" 512 features and the last one 184. The decoder follows the opposite procedure. 
+    We consider three different priors for \textbf{VAEs}; a \textbf{standard Gaussian}, a \textbf{mixture of Gaussians} (MoG) and a \textbf{Flow-based} prior. Both the encoder and decoder consist of three linear layers, with ReLU functions after the first two. The encoder receives a 784-dimensional input and outputs a 40-dimensional vector. The decoder maps from the 20-dimensional latent space to a 784-dimensional vector.
+
+    
+    The Gaussian prior is fixed and produces a circular distribution\cite{tomczak2024}. As a result, the aggregate posterior is forced to move to fit the prior (Figure \ref{fig:plots}), leading to a non-optimal match between the two. The digit clusters also overlap severely. The MoG prior achieves a more optimal match; more clusters are formed in the latent space, which comes in line with the clusters produced by the aggregate posterior. Finally, the Flow-based prior provides the best match. It is very flexible \cite{tomczak2024}, and thus it is closer to the structure of the aggregate posterior. The clusters overlap much less in this case(Figure \ref{fig:plots}).
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=2.5cm,height=2.5cm]{gaussian_prior.png}
+        \includegraphics[width=2.5cm,height=2.5cm]{mog_prior.png}
+        \includegraphics[width=2.5cm,height=2.5cm]{flow_prior.png}
+        \includegraphics[width=2.5cm,height=2.5cm]{gaussian_posterior.png}
+        \includegraphics[width=2.5cm,height=2.5cm]{mog_posterior.png}
+        \includegraphics[width=2.5cm,height=2.5cm]{flow_posterior.png}
+        \caption{Prior (top) vs aggregate posterior (bottom) for the three VAEs: Gaussian, MoG, Flow (from left to right)}
+        \label{fig:plots}
+    \end{figure}
     \begin{table}[H]
-        \caption{Mean and Standard Deviation for test set ELBO across the three priors}
+        \caption{Mean and Standard Deviation (Std) for test set ELBO across the three priors}
         \begin{center}
             \begin{tabular}{lcc}
                 \toprule
@@ -77,18 +103,11 @@ by Alice (s039894), Bob (s271828) \& Eve (s314159) on 05 March 2026
              \end{tabular}                
         \end{center}
     \end{table}
-    \begin{figure}[H]
-        \centering
-        \includegraphics[width=0.3\textwidth]{gaussian_prior_posterior.png}
-        \includegraphics[width=0.3\textwidth]{mog_prior_posterior.png}
-        \includegraphics[width=0.3\textwidth]{flow_prior_posterior.png}
-        \caption{Three plots showing something interesting.}
-        \label{fig:plots}
-    \end{figure}
-    \lipsum[2]
+  The test set log-likelihood was approximated by the ELBO. After 5 training runs, the Gaussian prior has the poorest performance, with a low ELBO mean of -81.67 and a Standard Deviation (std) of 0.57 (Table 1). This proves a difficulty of fitting the data and a very high variance, thus training instability. MoG prior achieves a higher mean and a lower std. The Flow-based prior outperforms the previous priors, providing the highest mean and lowest std. As a result, the more expressive and flexible the model, the tighter the ELBO.
+
 
     \subsection*{Part B: Sampling quality of generative models}
-    We investigate sampling quality of \textbf{Denoising Diffusion Probabilistic Models} (DDPM) trained on MNIST using two approaches: (1) UNet architecture operating on pixel space, and (2) latent space diffusion with a pre-trained flow-prior $\beta$-VAE encoder. We evaluate generation quality using Fr\'{e}chet Inception Distance (FID), where lower scores indicate higher quality. This comparison demonstrates how VAE-structured latent spaces support efficient and high-quality diffusion-based generation compared to direct pixel-space modeling.
+    We investigate sampling quality of \textbf{Denoising Diffusion Probabilistic Models} (DDPM) trained on MNIST: (1) UNet in pixel space, and (2) latent diffusion with a $\beta$-VAE encoder. The UNet has channels [32,64,128,256] with skip connections; the latent DDPM uses a 3-layer FC network (256 hidden units) on 32-dim latents. We evaluate quality using FID scores.
     \begin{figure}[H]
         \centering
         \includegraphics[width=2.5cm,height=2.5cm]{report_images/flow_samples.png}
@@ -113,11 +132,11 @@ by Alice (s039894), Bob (s271828) \& Eve (s314159) on 05 March 2026
              \end{tabular}
         \end{center}
     \end{table}
-    Latent DDPM achieves superior performance (FID$=4.67$ at $\beta=10^{-3}$) compared to both the flow VAE (FID$=6.90$) and pixel-space UNet (FID$=10.17$), demonstrating effective diffusion in structured latent spaces. The regularization parameter $\beta$ critically controls downstream performance: stronger regularization ($\beta=10^{-6}$, FID$=5.46$) enforces prior alignment, while weaker values ($\beta=10^{-2}$, FID$=5.02$) increase reconstruction fidelity. The optimal $\beta=10^{-3}$ balances these trade-offs, enabling superior latent structure for diffusion. The flow-prior VAE provides low-dimensional representations that simplify diffusion, enabling faster sampling while maintaining generation quality superior to direct pixel-space approaches.
+    Latent DDPM achieves superior FID ($4.67$ at $\beta=10^{-3}$) vs. flow VAE ($6.90$) and UNet ($10.17$). The $\beta$ parameter controls the trade-off: $\beta=10^{-6}$ (FID$=5.46$) enforces prior alignment; $\beta=10^{-2}$ (FID$=5.02$) favors reconstruction. Sampling speed varies dramatically: VAE (20k/s) $\gg$ latent DDPM ($\sim$2.5k/s) $\gg$ UNet (2.3/s), showing latent diffusion balances quality and efficiency.
     \begin{figure}[H]
         \centering
-        \rule{2.5cm}{2.5cm}
-        \caption{Comparison of prior from $\beta$-VAE ($\beta=0.001$), learned latent DDPM distribution, and aggregate posterior (placeholder).}
+        \includegraphics[width=7cm,height=2.5cm]{report_images/latent_comparison.png}
+        \caption{$\beta$-VAE prior (left), aggregate posterior (center), and latent DDPM distribution (right). The DDPM learns to match the complex aggregate posterior better than the simple Gaussian prior.}
         \label{fig:prior_comparison}
     \end{figure}
 \end{multicols}
@@ -189,23 +208,24 @@ def sample(self, n_samples):
 
 \newpage
 
+
 %%% AI declaration %%%
 
 \section*{Declaration of use of generative AI}
 
 This declaration \textbf{must} be filled out and included as the 3rd page of the document. The questions apply to all parts of the work, including research, project writing, and coding.
 \begin{itemize}
-\item I/we have used generative AI tools: [yes / no]
+\item I/we have used generative AI tools: [yes]
 \end{itemize}
 If you answered \emph{yes}, please complete the following sections. List the generative AI tools you have used:
 \begin{itemize}
-\item
+\item GitHub Copilot
 \end{itemize}
 Describe how the tools were used:
 \begin{description}
-\item[What did you use the tool(s) for?]
-\item[At what stage(s) of the process did you use the tool(s)?]
-\item[How did you use or incorporate the generated output?]
+\item[What did you use the tool(s) for?] Helper scripts for data loading and FID computation CLI tools. Report writing and refinement for clarity and grammar in parts of the manuscript.
+\item[At what stage(s) of the process did you use the tool(s)?] During implementation of utility scripts (early stage) and during final report writing and editing (late stage).
+\item[How did you use or incorporate the generated output?] Generated code templates were reviewed and integrated into the project structure. Suggested text improvements were evaluated and selectively incorporated into the final report.
 \end{description}
 
 \newpage
