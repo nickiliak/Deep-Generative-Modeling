@@ -1,0 +1,18 @@
+{
+  "timestamp": "20260303_131849",
+  "fid_score": 6.89626849946907,
+  "num_samples": 10000,
+  "sampling_time_sec": 0.4845473599998513,
+  "samples_per_sec": 20637.817529339274,
+  "prior": "flow",
+  "vae": {
+    "latent_dim": 20,
+    "decoder": "bernoulli"
+  },
+  "training": {
+    "epochs": 20,
+    "batch_size": 128,
+    "lr": 0.001
+  },
+  "model_path": "/mnt/c/Users/nick/Desktop/DTU Courses/02460 Advanced Machine Learning/Deep-Generative-Modeling/models/part_a_vaes/flow_model.pt"
+}
