@@ -1,3 +1,8 @@
+---
+name: fill-report
+description: Fill in the LaTeX report for the 02460 Advanced Machine Learning mini-project while respecting template constraints.
+---
+
 # Fill Report
 
 Fill in the LaTeX report for the 02460 Advanced Machine Learning mini-project while respecting template constraints.

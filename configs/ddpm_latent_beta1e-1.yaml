@@ -46,5 +46,5 @@ fid:
 
 # Sampling settings
 sampling:
-  num_samples: 256
-  grid_size: 8
+  num_samples: 4
+  grid_size: 2

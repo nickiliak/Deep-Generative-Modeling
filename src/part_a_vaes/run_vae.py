@@ -297,8 +297,9 @@ def plot_prior_vs_posterior(model, data_loader, device, prior_name, save_path, n
 
 def plot_samples(model, device, prior_name, save_path, n_samples=64):
     """
-    Draw n_samples from p(z) -> p(x|z) and display as an 8-column grid.
+    Draw n_samples from p(z) -> p(x|z) and display as a grid.
     Uses the decoder mean (soft probabilities) for cleaner visuals.
+    Grid dimensions adjust based on n_samples, preferring square layouts.
     """
     model.eval()
     with torch.no_grad():
@@ -308,13 +309,31 @@ def plot_samples(model, device, prior_name, save_path, n_samples=64):
             z = model.prior.sample(n_samples).to(device)
         samples = model.decoder(z).mean.cpu()   # (N, 28, 28)
 
-    ncols = 8
-    nrows = n_samples // ncols
+    # Prefer square grids; max 8 columns
+    import math
+    sqrt_samples = int(math.sqrt(n_samples))
+    if sqrt_samples * sqrt_samples == n_samples:
+        # Perfect square: use square grid
+        ncols = sqrt_samples
+        nrows = sqrt_samples
+    else:
+        # Not a square: use max 8 columns
+        ncols = min(8, n_samples)
+        nrows = (n_samples + ncols - 1) // ncols
     fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 1.2, nrows * 1.2))
     fig.suptitle(f"{PRIOR_LABELS[prior_name]} Prior -- Generated Samples", fontsize=12)
 
-    for idx, ax in enumerate(axes.flat):
-        ax.imshow(samples[idx], cmap="gray", vmin=0, vmax=1)
+    # Flatten axes for iteration, handle case when there's only 1 subplot
+    if nrows == 1 and ncols == 1:
+        axes_flat = [axes]
+    elif nrows == 1 or ncols == 1:
+        axes_flat = axes.flat
+    else:
+        axes_flat = axes.flat
+    
+    for idx, ax in enumerate(axes_flat):
+        if idx < n_samples:
+            ax.imshow(samples[idx], cmap="gray", vmin=0, vmax=1)
         ax.axis("off")
 
     plt.tight_layout()
@@ -349,6 +368,8 @@ if __name__ == "__main__":
                         help="Number of coupling layers in the Flow prior (default: 4)")
     parser.add_argument("--flow-hidden", type=int,  default=64,
                         help="Hidden dim of scale/translation nets in Flow prior (default: 64)")
+    parser.add_argument("--num-samples", type=int,  default=64,
+                        help="Number of samples to generate in sample mode (default: 64)")
     parser.add_argument("--fid-samples", type=int, default=10000,
                         help="Number of samples for FID computation (default: 10000)")
     parser.add_argument("--classifier-ckpt", type=str, default="../../models/mnist_classifier.pth",
@@ -418,17 +439,18 @@ if __name__ == "__main__":
         print(f"\n[Test ELBO] {elbo:.4f}")
 
         plot_prior_vs_posterior(model, test_loader, device, args.prior, args.plot)
-        plot_samples(model, device, args.prior, args.samples)
+        plot_samples(model, device, args.prior, args.samples, n_samples=args.num_samples)
 
     # Sample from a saved model 
     elif args.mode == "sample":
         from torchvision.utils import save_image
+        import math
         model = build_model(args.prior, M, device, args.flow_layers, args.flow_hidden)
         model.load_state_dict(torch.load(args.model, map_location=device))
         model.eval()
         
         # Measure sampling time
-        n_samples = 64
+        n_samples = args.num_samples
         start_time = time.perf_counter()
         with torch.no_grad():
             samples = model.sample(n_samples).cpu()
@@ -437,7 +459,14 @@ if __name__ == "__main__":
         elapsed = end_time - start_time
         samples_per_sec = n_samples / elapsed
         
-        save_image(samples.view(n_samples, 1, 28, 28), args.samples)
+        # Calculate grid dimensions: prefer square layouts
+        sqrt_samples = int(math.sqrt(n_samples))
+        if sqrt_samples * sqrt_samples == n_samples:
+            nrow = sqrt_samples
+        else:
+            nrow = min(8, n_samples)
+        
+        save_image(samples.view(n_samples, 1, 28, 28), args.samples, nrow=nrow)
         print(f"[OK] {n_samples} samples saved -> {args.samples}")
         print(f"[Timing] {elapsed:.4f}s total, {samples_per_sec:.2f} samples/sec")
 
@@ -451,7 +480,7 @@ if __name__ == "__main__":
         print(f"\n[Test ELBO] {elbo:.4f}")
 
         plot_prior_vs_posterior(model, test_loader, device, args.prior, args.plot)
-        plot_samples(model, device, args.prior, args.samples)
+        plot_samples(model, device, args.prior, args.samples, n_samples=args.num_samples)
 
     # Multi-run: train N times, report mean +/- std
     elif args.mode == "multirun":

@@ -3,7 +3,7 @@
 \usepackage[english]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage[a4paper, margin=2cm]{geometry}
+\usepackage[a4paper, margin=1cm]{geometry}
 \usepackage{amsmath,amsfonts,amssymb}
 \usepackage[colorlinks]{hyperref}
 \usepackage{multicol}
@@ -62,7 +62,7 @@ by Alice (s039894), Bob (s271828) \& Eve (s314159) on 05 March 2026
 
 \begin{multicols}{2}
     \subsection*{Part A: Priors for variational autoencoders (VAEs)}
-    For the first part of the project we consider three different priors for \textbf{Variational Autoencoders} (VAEs); a \textbf{standard Gaussian}, a \textbf{mixture of Gaussians} (MoG) and a \textbf{Flow-based} prior, For each of the three VAEs we report the results of 5 training runs. The architectures used for the encoder are the following; they both consist of three linear layers, each of the first two followed by a ReLU activation function. The first two layers of the encoder "learn" 512 features and the last one 184. The decoder follows the opposite procedure. 
+    We consider three different priors for \textbf{Variational Autoencoders} (VAEs); a \textbf{standard Gaussian}, a \textbf{mixture of Gaussians} (MoG) and a \textbf{Flow-based} prior, For each of the three VAEs we report the results of 5 training runs. The architectures used for the encoder are the following; they both consist of three linear layers, each of the first two followed by a ReLU activation function. The first two layers of the encoder "learn" 512 features and the last one 184. The decoder follows the opposite procedure. 
     \begin{table}[H]
         \caption{Mean and Standard Deviation for test set ELBO across the three priors}
         \begin{center}
@@ -79,64 +79,47 @@ by Alice (s039894), Bob (s271828) \& Eve (s314159) on 05 March 2026
     \end{table}
     \begin{figure}[H]
         \centering
-        \rule{2.5cm}{2.5cm}
-        \rule{2.5cm}{2.5cm}
-        \rule{2.5cm}{2.5cm}
+        \includegraphics[width=0.3\textwidth]{gaussian_prior_posterior.png}
+        \includegraphics[width=0.3\textwidth]{mog_prior_posterior.png}
+        \includegraphics[width=0.3\textwidth]{flow_prior_posterior.png}
         \caption{Three plots showing something interesting.}
         \label{fig:plots}
     \end{figure}
     \lipsum[2]
 
     \subsection*{Part B: Sampling quality of generative models}
-    We investigate the sampling quality of \textbf{Denoising Diffusion Probabilistic Models} (DDPM) trained on MNIST in two settings: (1) pixel space with a UNet architecture, and (2) latent space using a pre-trained $\beta$-VAE encoder with varying $\beta$ coefficients. We evaluate sample quality using the Fr\'{e}chet Inception Distance (FID) score, which measures distributional similarity between generated and real samples. Lower FID scores indicate higher quality generation. This approach allows assessment of how VAE latent space properties influence diffusion-based generation.
+    We investigate sampling quality of \textbf{Denoising Diffusion Probabilistic Models} (DDPM) trained on MNIST using two approaches: (1) UNet architecture operating on pixel space, and (2) latent space diffusion with a pre-trained flow-prior $\beta$-VAE encoder. We evaluate generation quality using Fr\'{e}chet Inception Distance (FID), where lower scores indicate higher quality. This comparison demonstrates how VAE-structured latent spaces support efficient and high-quality diffusion-based generation compared to direct pixel-space modeling.
     \begin{figure}[H]
         \centering
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-6_samples_1.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-6_samples_2.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-6_samples_3.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-6_samples_4.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-3_samples_1.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-3_samples_2.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-3_samples_3.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-3_samples_4.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-2_samples_1.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-2_samples_2.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-2_samples_3.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-2_samples_4.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-1_samples_1.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-1_samples_2.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-1_samples_3.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-1_samples_4.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_unet_samples_1.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_unet_samples_2.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_unet_samples_3.png}
-        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_unet_samples_4.png}
-
-        \caption{Generated MNIST samples from latent DDPM with increasing $\beta$ values (left to right: $\beta \in \{10^{-6}, 10^{-3}, 10^{-2}, 10^{-1}\}$) and UNet DDPM (right).}
+        \includegraphics[width=2.5cm,height=2.5cm]{report_images/flow_samples.png}
+        \includegraphics[width=2.5cm,height=2.5cm]{report_images/ddpm_latent_beta1e-3_samples_1.png}
+        \includegraphics[width=2.5cm,height=2.5cm]{report_images/ddpm_unet_samples_1.png}
+        \caption{Generated samples: flow prior VAE (left), latent DDPM with $\beta=10^{-3}$ (center), and pixel-space UNet DDPM (right).}
         \label{fig:ddpm_samples}
     \end{figure}
-    Results show optimal performance at $\beta=0.001$ with FID$=4.67$, improving upon both stronger regularization ($\beta=10^{-6}$, FID$=5.46$) and weaker ($\beta=0.01$, FID$=5.02$; $\beta=0.1$, FID$=6.55$). This indicates a sweet-spot regularization strength balancing reconstruction and diversity. Latent space diffusion demonstrates superior efficiency compared to pixel-space methods, with faster sampling ($\sim$2430 samples/sec) and competitive sample quality due to structured latent representations from the VAE.
     \begin{table}[H]
-        \caption{FID scores for DDPM models on MNIST. VAE-based models use 32-dimensional latent space; pixel-space UNet operates on 28$\times$28 images.}
+        \caption{FID scores: Part A (flow prior VAE) and Part B (DDPM models).}
         \begin{center}
             \begin{tabular}{lcc}
                 \toprule
-                Model & FID Score & Sampling (samples/sec) \\
+                Model & FID & Sampling (samples/sec) \\
                 \midrule
+                Flow prior VAE (Part A) & 6.90 & 20638 \\
                 Latent DDPM ($\beta=10^{-6}$) & 5.46 & 2468 \\
-                Latent DDPM ($\beta=0.001$) & 4.67 & 2431 \\
-                Latent DDPM ($\beta=0.01$) & 5.02 & 2730 \\
-                Latent DDPM ($\beta=0.1$) & 6.55 & 2864 \\
-                UNet DDPM (pixel space) & TBD & TBD \\
+                Latent DDPM ($\beta=10^{-3}$) & 4.67 & 2431 \\
+                Latent DDPM ($\beta=10^{-2}$) & 5.02 & 2730 \\
+                UNet DDPM (pixel space) & 10.17 & 2.33 \\
                 \bottomrule
-             \end{tabular}                
+             \end{tabular}
         \end{center}
-    \end{table>
-
-    \subsection*{Analysis: Regularization and Sample Quality}
-    The $\beta$-VAE regularization parameter critically affects downstream diffusion model performance. Stronger regularization ($\beta=10^{-6}$) enforces prior alignment but may collapse latent structure; weaker values increase reconstruction but reduce regularization. The optimal $\beta=0.001$ achieves the best FID score, suggesting this configuration provides well-structured latent distributions amenable to diffusion. The monotonic FID degradation beyond this optimum ($\beta=0.01$ and $\beta=0.1$) reflects increasingly loose latent priors, making diffusion learning more complex. Sampling efficiency improves with looser priors (higher $\beta$), indicating faster convergence due to less constrained latent spaces.
-
-    Comparison with pixel-space UNet diffusion reveals fundamental trade-offs. Latent DDPM achieves superior computational efficiency and quality through dimensionality reduction. The 32-dimensional latent space captures essential MNIST variation, enabling faster diffusion. This approach demonstrates the advantage of combining representation learning (VAE) with generative modeling (DDPM): structured latent spaces simplify the diffusion problem while maintaining sample quality. Such hybrid architectures are increasingly prevalent in modern generative systems, balancing computational efficiency with generation fidelity.
+    \end{table}
+    Latent DDPM achieves superior performance (FID$=4.67$ at $\beta=10^{-3}$) compared to both the flow VAE (FID$=6.90$) and pixel-space UNet (FID$=10.17$), demonstrating effective diffusion in structured latent spaces. The regularization parameter $\beta$ critically controls downstream performance: stronger regularization ($\beta=10^{-6}$, FID$=5.46$) enforces prior alignment, while weaker values ($\beta=10^{-2}$, FID$=5.02$) increase reconstruction fidelity. The optimal $\beta=10^{-3}$ balances these trade-offs, enabling superior latent structure for diffusion. The flow-prior VAE provides low-dimensional representations that simplify diffusion, enabling faster sampling while maintaining generation quality superior to direct pixel-space approaches.
+    \begin{figure}[H]
+        \centering
+        \rule{2.5cm}{2.5cm}
+        \caption{Comparison of prior from $\beta$-VAE ($\beta=0.001$), learned latent DDPM distribution, and aggregate posterior (placeholder).}
+        \label{fig:prior_comparison}
+    \end{figure}
 \end{multicols}
 
 \newpage
@@ -144,15 +127,64 @@ by Alice (s039894), Bob (s271828) \& Eve (s314159) on 05 March 2026
 %%% Code snippet part %%%
 
 \section*{Code snippets}
-The following beautiful code snippet prints \lstinline{"Hello world"} 10 times:
+
+\subsection*{VAE ELBO Evaluation with Non-Gaussian Priors}
+The ELBO for a VAE with an arbitrary prior is computed as: $\text{ELBO} = \mathbb{E}_q[\log p(x|z)] - \beta \cdot \text{KL}(q(z|x) \| p(z))$. For non-Gaussian priors (MoG, Flow), we use Monte Carlo estimation:
 \begin{lstlisting}
-for i in range(10):
-    print("Hello world")
+def elbo(self, x):
+    q = self.encoder(x)
+    z = q.rsample()
+    rec = self.decoder(z).log_prob(x)
+    
+    if isinstance(self.prior, GaussianPrior):
+        kl = td.kl_divergence(q, self.prior())  # closed-form
+    else:
+        # MC estimate for MoG and Flow
+        log_q = q.log_prob(z)
+        log_p = self.prior.log_prob(z)
+        kl = log_q - log_p  # shape: (batch,)
+    
+    return torch.mean(rec - self.beta * kl)
 \end{lstlisting}
-Here is a more advanced code example that prints \lstinline{"Hello world"} 100 times:
+
+\subsection*{Normalizing Flow Prior}
+The flow prior transforms base noise through learned affine coupling layers. Density evaluation uses the inverse flow; sampling uses the forward pass:
 \begin{lstlisting}
-for i in range(100):
-    print("Hello world")
+def log_prob(self, z):
+    z0, log_det_J = self.forward(z)  # inverse
+    return self.base().log_prob(z0) + log_det_J
+
+def sample(self, n):
+    z = self.base().sample(torch.Size([n]))
+    for layer in self.layers:  # forward pass
+        z, _ = layer.forward(z)
+    return z
+\end{lstlisting}
+
+\subsection*{DDPM Negative ELBO}
+The DDPM loss trains a network to predict noise at random timesteps:
+\begin{lstlisting}
+def negative_elbo(self, x):
+    noise = torch.randn_like(x)
+    t = torch.randint(0, self.T, (x.shape[0],))
+    noisy = torch.sqrt(self.alpha_cumprod[t]) * x + \
+            torch.sqrt(1 - self.alpha_cumprod[t]) * noise
+    t_input = (t.float() / self.T).unsqueeze(1)
+    pred_noise = self.network(noisy, t_input)
+    return ((noise - pred_noise)**2).mean(dim=1)
+\end{lstlisting}
+
+\subsection*{Latent DDPM: Training and Sampling}
+For latent diffusion, we freeze the VAE encoder/decoder and train DDPM on latent vectors:
+\begin{lstlisting}
+def negative_elbo(self, x):
+    z = self.encode(x)
+    return self.ddpm.negative_elbo(z)
+
+def sample(self, n_samples):
+    z_samples = self.ddpm.sample((n_samples, self.latent_dim))
+    x_samples = self.decode(z_samples)
+    return x_samples
 \end{lstlisting}
 
 \newpage
