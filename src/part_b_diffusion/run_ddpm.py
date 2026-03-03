@@ -16,7 +16,7 @@ import time
 
 from part_b_diffusion.ddpm import DDPM, FcNetwork, train, build_model
 from part_b_diffusion.ddpm_vae_beta import DDPMLatent, train_vae, build_latent_model
-from part_b_diffusion.utils import is_latent_mode, load_config, get_model_path, get_vae_path, preprocess_mnist
+from part_b_diffusion.utils import is_latent_mode, load_config, get_model_path, get_vae_path, preprocess_mnist, get_model_type
 from part_b_diffusion.plot_latent_distributions import compare_latent_distributions
 from shared.fid_utils import compute_fid
 from shared.data_loader import get_mnist_raw
@@ -175,15 +175,13 @@ def run_sample(config: dict):
     num_grids = num_samples // images_per_grid
     
     # Save each grid as a separate image
+    model_type = get_model_type(config)
     for grid_idx in range(num_grids):
         start_idx = grid_idx * images_per_grid
         end_idx = start_idx + images_per_grid
         grid_samples = samples[start_idx:end_idx]
         
-        if latent:
-            sample_path = os.path.join(samples_dir, f"ddpm_latent_z{config['vae']['latent_dim']}_samples_{grid_idx+1}.png")
-        else:
-            sample_path = os.path.join(samples_dir, f"ddpm_{config['model']['network']}_samples_{grid_idx+1}.png")
+        sample_path = os.path.join(samples_dir, f"{model_type}_samples_{grid_idx+1}.png")
         
         save_image(grid_samples, sample_path, nrow=grid_size)
         print(f"[OK] Samples saved -> {sample_path}")

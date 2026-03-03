@@ -35,7 +35,7 @@ training:
 paths:
   model_dir: models/part_b_diffusion
   vae_name: beta_vae_gaussian_beta{beta}_z{latent_dim}.pt
-  model_name: ddpm_latent_T{T}_z{latent_dim}.pt
+  model_name: ddpm_latent_T{T}_z{latent_dim}_beta{beta}.pt
   fid_output_dir: reports/outputs/part_b_diffusion/fid
   samples_dir: reports/outputs/part_b_diffusion/samples
 

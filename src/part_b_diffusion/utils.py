@@ -16,7 +16,22 @@ def load_config(config_path: str) -> dict:
     """Load configuration from YAML file."""
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
+    # Store config path for model type extraction
+    config['_config_path'] = config_path
     return config
+
+
+def get_model_type(config: dict) -> str:
+    """Extract model type from config path (e.g., 'ddpm_latent_beta1e-1' from 'configs/ddpm_latent_beta1e-1.yaml')."""
+    config_path = config.get('_config_path', '')
+    if config_path:
+        basename = os.path.basename(config_path)
+        # Remove .yaml extension
+        return os.path.splitext(basename)[0]
+    # Fallback if no config path stored
+    if is_latent_mode(config):
+        return f"ddpm_latent_z{config['vae']['latent_dim']}"
+    return f"ddpm_{config['model']['network']}"
 
 
 def get_model_path(config: dict) -> str:
@@ -26,6 +41,7 @@ def get_model_path(config: dict) -> str:
     model_name = model_name.replace('{T}', str(config['model']['T']))
     if is_latent_mode(config):
         model_name = model_name.replace('{latent_dim}', str(config['vae']['latent_dim']))
+        model_name = model_name.replace('{beta}', str(config['vae']['beta']))
         model_name = model_name.replace('{epochs}', str(config['training']['ddpm_epochs']))
     else:
         model_name = model_name.replace('{epochs}', str(config['training']['epochs']))

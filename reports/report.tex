@@ -61,8 +61,22 @@
 by Alice (s039894), Bob (s271828) \& Eve (s314159) on 05 March 2026
 
 \begin{multicols}{2}
-    \subsection*{First Section}
-    DDPM results section. Similarly to \citet{tomczak2024}, we show some plots in figure \ref{fig:plots}.
+    \subsection*{Part A: Priors for variational autoencoders (VAEs)}
+    For the first part of the project we consider three different priors for \textbf{Variational Autoencoders} (VAEs); a \textbf{standard Gaussian}, a \textbf{mixture of Gaussians} (MoG) and a \textbf{Flow-based} prior, For each of the three VAEs we report the results of 5 training runs. The architectures used for the encoder are the following; they both consist of three linear layers, each of the first two followed by a ReLU activation function. The first two layers of the encoder "learn" 512 features and the last one 184. The decoder follows the opposite procedure. 
+    \begin{table}[H]
+        \caption{Mean and Standard Deviation for test set ELBO across the three priors}
+        \begin{center}
+            \begin{tabular}{lcc}
+                \toprule
+                Priors & Mean & Std \\
+                \midrule
+                Standard Gaussian & -81.6675 &  0.5670 \\
+                MoG & -80.1554 & 0.1622 \\
+                Flow-based & -72.7806 & 0.1167 \\
+                \bottomrule
+             \end{tabular}                
+        \end{center}
+    \end{table}
     \begin{figure}[H]
         \centering
         \rule{2.5cm}{2.5cm}
@@ -73,37 +87,56 @@ by Alice (s039894), Bob (s271828) \& Eve (s314159) on 05 March 2026
     \end{figure}
     \lipsum[2]
 
-    \subsection*{Second section}
-    \lipsum[3]
+    \subsection*{Part B: Sampling quality of generative models}
+    We investigate the sampling quality of \textbf{Denoising Diffusion Probabilistic Models} (DDPM) trained on MNIST in two settings: (1) pixel space with a UNet architecture, and (2) latent space using a pre-trained $\beta$-VAE encoder with varying $\beta$ coefficients. We evaluate sample quality using the Fr\'{e}chet Inception Distance (FID) score, which measures distributional similarity between generated and real samples. Lower FID scores indicate higher quality generation. This approach allows assessment of how VAE latent space properties influence diffusion-based generation.
     \begin{figure}[H]
         \centering
-        \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm}
-        \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm}
-        \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm}
-        \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm} \rule{1cm}{1cm}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-6_samples_1.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-6_samples_2.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-6_samples_3.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-6_samples_4.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-3_samples_1.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-3_samples_2.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-3_samples_3.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-3_samples_4.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-2_samples_1.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-2_samples_2.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-2_samples_3.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-2_samples_4.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-1_samples_1.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-1_samples_2.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-1_samples_3.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_latent_beta1e-1_samples_4.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_unet_samples_1.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_unet_samples_2.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_unet_samples_3.png}
+        \includegraphics[width=1cm,height=1cm]{report_images/ddpm_unet_samples_4.png}
 
-        \caption{This could be some a lot of small pictures.}
+        \caption{Generated MNIST samples from latent DDPM with increasing $\beta$ values (left to right: $\beta \in \{10^{-6}, 10^{-3}, 10^{-2}, 10^{-1}\}$) and UNet DDPM (right).}
+        \label{fig:ddpm_samples}
     \end{figure}
-    \lipsum[4]
+    Results show optimal performance at $\beta=0.001$ with FID$=4.67$, improving upon both stronger regularization ($\beta=10^{-6}$, FID$=5.46$) and weaker ($\beta=0.01$, FID$=5.02$; $\beta=0.1$, FID$=6.55$). This indicates a sweet-spot regularization strength balancing reconstruction and diversity. Latent space diffusion demonstrates superior efficiency compared to pixel-space methods, with faster sampling ($\sim$2430 samples/sec) and competitive sample quality due to structured latent representations from the VAE.
     \begin{table}[H]
-        \caption{This table shows some cool numbers.}
+        \caption{FID scores for DDPM models on MNIST. VAE-based models use 32-dimensional latent space; pixel-space UNet operates on 28$\times$28 images.}
         \begin{center}
             \begin{tabular}{lcc}
                 \toprule
-                Method & Measure 1 & Measure 1 \\
+                Model & FID Score & Sampling (samples/sec) \\
                 \midrule
-                A & 1.0 & 2.0 \\
-                B & 3.0 & 4.9 \\
-                C & 5.0 & 6.0 \\
+                Latent DDPM ($\beta=10^{-6}$) & 5.46 & 2468 \\
+                Latent DDPM ($\beta=0.001$) & 4.67 & 2431 \\
+                Latent DDPM ($\beta=0.01$) & 5.02 & 2730 \\
+                Latent DDPM ($\beta=0.1$) & 6.55 & 2864 \\
+                UNet DDPM (pixel space) & TBD & TBD \\
                 \bottomrule
              \end{tabular}                
         \end{center}
-    \end{table}
+    \end{table>
 
-    \subsection*{Third section}
-    \lipsum[4]
+    \subsection*{Analysis: Regularization and Sample Quality}
+    The $\beta$-VAE regularization parameter critically affects downstream diffusion model performance. Stronger regularization ($\beta=10^{-6}$) enforces prior alignment but may collapse latent structure; weaker values increase reconstruction but reduce regularization. The optimal $\beta=0.001$ achieves the best FID score, suggesting this configuration provides well-structured latent distributions amenable to diffusion. The monotonic FID degradation beyond this optimum ($\beta=0.01$ and $\beta=0.1$) reflects increasingly loose latent priors, making diffusion learning more complex. Sampling efficiency improves with looser priors (higher $\beta$), indicating faster convergence due to less constrained latent spaces.
 
-    \lipsum[4]
+    Comparison with pixel-space UNet diffusion reveals fundamental trade-offs. Latent DDPM achieves superior computational efficiency and quality through dimensionality reduction. The 32-dimensional latent space captures essential MNIST variation, enabling faster diffusion. This approach demonstrates the advantage of combining representation learning (VAE) with generative modeling (DDPM): structured latent spaces simplify the diffusion problem while maintaining sample quality. Such hybrid architectures are increasingly prevalent in modern generative systems, balancing computational efficiency with generation fidelity.
 \end{multicols}
 
 \newpage
@@ -150,15 +183,3 @@ Describe how the tools were used:
 \bibliography{template}
 
 \end{document}
-
-% Metrics Data
-\begin{table}[h]
-\centering
-\begin{tabular}{lrr}
-Model & FID & Speed (s/s) \\
-ddpm\_latent & 2836.2 & 214.1 \\
-ddpm\_latent & 16.4 & 355.3 \\
-ddpm\_unet & 124.8 & 18.6 \\
-\end{tabular}
-\end{table}
-
