@@ -1,0 +1,50 @@
+# DDPM in β-VAE Latent Space Configuration
+# Mode: latent - trains DDPM on VAE latent representations
+# β = 5 (very weak KL penalty, less disentangled representations)
+
+mode: latent
+
+# Data settings
+data:
+  dataset: mnist
+  batch_size: 256
+
+# VAE settings (β-VAE with Gaussian decoder)
+vae:
+  beta: 5
+  latent_dim: 32
+  decoder: gaussian
+  decoder_std: 0.5
+  checkpoint: null
+
+# DDPM model settings
+model:
+  network: fc
+  beta_1: 1.0e-4
+  beta_T: 2.0e-2
+  T: 1000
+
+# Training settings
+training:
+  vae_epochs: 40
+  ddpm_epochs: 70
+  lr: 1.0e-3
+  device: cuda
+
+# Output paths
+paths:
+  model_dir: models/part_b_diffusion
+  vae_name: beta_vae_gaussian_beta{beta}_z{latent_dim}.pt
+  model_name: ddpm_latent_T{T}_z{latent_dim}_beta{beta}.pt
+  fid_output_dir: reports/outputs/part_b_diffusion/fid
+  samples_dir: reports/outputs/part_b_diffusion/samples
+
+# FID evaluation settings
+fid:
+  num_samples: 10000
+  classifier_ckpt: models/mnist_classifier.pth
+
+# Sampling settings
+sampling:
+  num_samples: 4
+  grid_size: 2
