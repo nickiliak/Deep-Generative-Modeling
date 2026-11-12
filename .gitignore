@@ -89,4 +89,8 @@ target/
 .mypy_cache/
 
 # checkpoints
-models/*pt
+models/part_a_vaes/*.pt
+models/part_b_diffusion/*.pt
+
+# generated run outputs (logs, metrics, samples from training runs)
+reports/outputs/
