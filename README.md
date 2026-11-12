@@ -27,9 +27,7 @@ A team project implementing Variational Autoencoders (VAE) and Diffusion Probabi
 ├── models/                        <- Trained models & checkpoints
 │   └── mnist_classifier.pth       <- Pre-trained classifier for FID scoring
 │
-├── notebooks/                     <- Jupyter notebooks for exploration & visualization
-│   ├── part_a_*.ipynb             <- Team A analysis
-│   └── part_b_*.ipynb             <- Team B analysis
+├── notebooks/                     <- reserved for exploration & visualization notebooks
 │
 └── src/                           <- Source code (split by team)
     ├── __init__.py
